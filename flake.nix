@@ -225,6 +225,75 @@
         runScript = "vivado";
       };
 
+      # ARTIQ source for software builds.
+      artiq-software-src = pkgs.python3Packages.buildPythonPackage rec {
+        pname = "artiq";
+        version = artiqVersion;
+        src = self;
+
+        preBuild =
+          ''
+          export VERSIONEER_OVERRIDE=${version}
+          export VERSIONEER_REG=${artiqRev}
+          '';
+
+        propagatedBuildInputs = [
+          migen
+          misoc
+          sipyco.packages.x86_64-linux.sipyco
+        ] ++ (with pkgs.python3Packages; [
+          jsonschema
+        ]);
+
+        doCheck = false;
+      };
+
+      # Build only the software (firmware) for a given Kasli variant.
+      # The hardware description is expected to be in the repository root, under ${variant}.json.
+      makeKasliSoftwarePackage = { variant }:
+        pkgs.stdenv.mkDerivation {
+          name = "artiq-software-kasli-${variant}";
+          phases = ["buildPhase" "installPhase"];
+          cargoDeps = rustPlatform.importCargoLock {
+            lockFile = ./artiq/firmware/Cargo.lock;
+            outputHashes = {
+              "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
+              "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
+            };
+          };
+
+          nativeBuildInputs = [
+            (pkgs.python3.withPackages(ps: [
+              artiq-software-src
+              ps.packaging
+            ]))
+            rust
+            rustPlatform.cargoSetupHook
+          ] ++ (with pkgs.llvmPackages_14; [
+            bintools-unwrapped
+            clang-unwrapped
+          ]);
+
+          buildPhase =
+            ''
+            ln -s ${self}/artiq/firmware/Cargo.lock .
+            cargoSetupPostUnpackHook
+            cargoSetupPostPatchHook
+            python -m artiq.gateware.targets.kasli --no-compile-gateware ${self}/${variant}.json
+            '';
+
+          installPhase =
+            ''
+            mkdir $out
+            if [ -e artiq_kasli/${variant}/software/runtime ]
+            then cp artiq_kasli/${variant}/software/runtime/runtime.{elf,fbi} $out
+            else cp artiq_kasli/${variant}/software/satman/satman.{elf,fbi} $out
+            fi
+            '';
+
+          dontFixup = true;
+        };
+
       makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}", experimentalFeatures ? [] }:
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
@@ -355,6 +424,17 @@
         artiq-board-efc-shuttler = makeArtiqBoardPackage {
           target = "efc";
           variant = "shuttler";
+        };
+        artiq-board-aqt-tester = makeArtiqBoardPackage {
+          target = "kasli";
+          variant = "aqt";
+          buildCommand =
+            ''
+            python -m artiq.gateware.targets.kasli ${self}/aqt.json
+            '';
+        };
+        artiq-software-aqt-tester = makeKasliSoftwarePackage {
+          variant = "aqt";
         };
         inherit latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
