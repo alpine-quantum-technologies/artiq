@@ -1,27 +1,26 @@
-#![feature(lang_items, asm, panic_unwind, libc,
-           panic_info_message, nll, c_unwind)]
+#![feature(lang_items, asm, panic_unwind, libc, panic_info_message, nll, c_unwind)]
 #![no_std]
 
+extern crate cslice;
 extern crate libc;
 extern crate unwind;
-extern crate cslice;
 
+extern crate board_artiq;
+extern crate board_misoc;
+extern crate dyld;
 extern crate eh;
 extern crate io;
-extern crate dyld;
-extern crate board_misoc;
-extern crate board_artiq;
 extern crate proto_artiq;
 extern crate riscv;
 
-use core::{mem, ptr, slice, str, convert::TryFrom};
-use cslice::CSlice;
-use io::Cursor;
-use dyld::Library;
 use board_artiq::{mailbox, rpc_queue};
-use proto_artiq::{kernel_proto, rpc_proto};
-use kernel_proto::*;
 use board_misoc::csr;
+use core::{convert::TryFrom, mem, ptr, slice, str};
+use cslice::CSlice;
+use dyld::Library;
+use io::Cursor;
+use kernel_proto::*;
+use proto_artiq::{kernel_proto, rpc_proto};
 use riscv::register::{mcause, mepc, mtval};
 
 fn send(request: &Message) {
@@ -31,7 +30,9 @@ fn send(request: &Message) {
 
 fn recv<R, F: FnOnce(&Message) -> R>(f: F) -> R {
     let mut msg_ptr = 0;
-    while msg_ptr == 0 { msg_ptr = mailbox::receive(); }
+    while msg_ptr == 0 {
+        msg_ptr = mailbox::receive();
+    }
     let result = f(unsafe { &*(msg_ptr as *const Message) });
     mailbox::acknowledge();
     result
@@ -47,15 +48,19 @@ macro_rules! recv {
                 loop {}
             }
         })
-    }
+    };
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
 #[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
-        send(&Log(format_args!("panic at {}:{}:{}",
-                               location.file(), location.line(), location.column())));
+        send(&Log(format_args!(
+            "panic at {}:{}:{}",
+            location.file(),
+            location.line(),
+            location.column()
+        )));
     } else {
         send(&Log(format_args!("panic at unknown location")));
     }
@@ -78,61 +83,65 @@ macro_rules! println {
 }
 
 macro_rules! raise {
-    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
+    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => {{
         use cslice::AsCSlice;
         let name_id = $crate::eh_artiq::get_exception_id($name);
         let exn = $crate::eh_artiq::Exception {
-            id:       name_id,
-            file:     file!().as_c_slice(),
-            line:     line!(),
-            column:   column!(),
+            id: name_id,
+            file: file!().as_c_slice(),
+            line: line!(),
+            column: column!(),
             // https://github.com/rust-lang/rfcs/pull/1719
             function: "(Rust function)".as_c_slice(),
-            message:  $message.as_c_slice(),
-            param:    [$param0, $param1, $param2]
+            message: $message.as_c_slice(),
+            param: [$param0, $param1, $param2],
         };
         #[allow(unused_unsafe)]
-        unsafe { $crate::eh_artiq::raise(&exn) }
-    });
-    ($name:expr, $message:expr) => ({
+        unsafe {
+            $crate::eh_artiq::raise(&exn)
+        }
+    }};
+    ($name:expr, $message:expr) => {{
         raise!($name, $message, 0, 0, 0)
-    });
+    }};
 }
 
-mod eh_artiq;
 mod api;
-mod rtio;
+mod eh_artiq;
 mod nrt_bus;
+mod rtio;
 
 static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
-pub extern fn send_to_core_log(text: CSlice<u8>) {
+pub extern "C" fn send_to_core_log(text: CSlice<u8>) {
     match str::from_utf8(text.as_ref()) {
         Ok(s) => send(&LogSlice(s)),
         Err(e) => {
-            send(&LogSlice(str::from_utf8(&text.as_ref()[..e.valid_up_to()]).unwrap()));
+            send(&LogSlice(
+                str::from_utf8(&text.as_ref()[..e.valid_up_to()]).unwrap(),
+            ));
             send(&LogSlice("(invalid utf-8)\n"));
         }
     }
 }
 
 #[no_mangle]
-pub extern fn send_to_rtio_log(text: CSlice<u8>) {
+pub extern "C" fn send_to_rtio_log(text: CSlice<u8>) {
     rtio::log(text.as_ref())
 }
 
-extern fn rpc_send(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
+extern "C" fn rpc_send(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
-        async:   false,
+        async: false,
         service: service,
-        tag:     tag.as_ref(),
-        data:    data
+        tag: tag.as_ref(),
+        data: data,
     })
 }
 
-extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
+extern "C" fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
         let length = {
@@ -141,19 +150,19 @@ extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ())
             writer.position()
         };
         io::ProtoWrite::write_u32(&mut slice, length as u32)
-    }).unwrap_or_else(|err| {
+    })
+    .unwrap_or_else(|err| {
         assert!(err == io::Error::UnexpectedEnd);
 
         while !rpc_queue::empty() {}
         send(&RpcSend {
-            async:   true,
+            async: true,
             service: service,
-            tag:     tag.as_ref(),
-            data:    data
+            tag: tag.as_ref(),
+            data: data,
         })
     })
 }
-
 
 /// Receives the result from an RPC call into the given memory buffer.
 ///
@@ -190,20 +199,22 @@ extern "C-unwind" fn rpc_recv(slot: *mut ()) -> usize {
     })
 }
 
-fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
-             stack_pointers: &'static [eh_artiq::StackPointerBacktrace],
-             backtrace: &mut [(usize, usize)]) -> ! {
+fn terminate(
+    exceptions: &'static [Option<eh_artiq::Exception<'static>>],
+    stack_pointers: &'static [eh_artiq::StackPointerBacktrace],
+    backtrace: &mut [(usize, usize)],
+) -> ! {
     send(&RunException {
         exceptions,
         stack_pointers,
-        backtrace
+        backtrace,
     });
     loop {}
 }
 
-extern fn cache_get<'a>(key: &CSlice<u8>) -> *const CSlice<'a, i32> {
+extern "C" fn cache_get<'a>(key: &CSlice<u8>) -> *const CSlice<'a, i32> {
     send(&CacheGetRequest {
-        key:   str::from_utf8(key.as_ref()).unwrap()
+        key: str::from_utf8(key.as_ref()).unwrap(),
     });
     recv!(&CacheGetReply { value } => {
         value
@@ -212,8 +223,8 @@ extern fn cache_get<'a>(key: &CSlice<u8>) -> *const CSlice<'a, i32> {
 
 extern "C-unwind" fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
     send(&CachePutRequest {
-        key:   str::from_utf8(key.as_ref()).unwrap(),
-        value: list.as_ref()
+        key: str::from_utf8(key.as_ref()).unwrap(),
+        value: list.as_ref(),
     });
     recv!(&CachePutReply { succeeded } => {
         if !succeeded {
@@ -225,20 +236,22 @@ extern "C-unwind" fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
 const DMA_BUFFER_SIZE: usize = 64 * 1024;
 
 struct DmaRecorder {
-    active:   bool,
+    active: bool,
     data_len: usize,
-    buffer:   [u8; DMA_BUFFER_SIZE],
+    buffer: [u8; DMA_BUFFER_SIZE],
 }
 
 static mut DMA_RECORDER: DmaRecorder = DmaRecorder {
-    active:   false,
+    active: false,
     data_len: 0,
-    buffer:   [0; DMA_BUFFER_SIZE],
+    buffer: [0; DMA_BUFFER_SIZE],
 };
 
 fn dma_record_flush() {
     unsafe {
-        send(&DmaRecordAppend(&DMA_RECORDER.buffer[..DMA_RECORDER.data_len]));
+        send(&DmaRecordAppend(
+            &DMA_RECORDER.buffer[..DMA_RECORDER.data_len],
+        ));
         DMA_RECORDER.data_len = 0;
     }
 }
@@ -252,10 +265,15 @@ extern "C-unwind" fn dma_record_start(name: &CSlice<u8>) {
         }
 
         let library = LIBRARY.as_ref().unwrap();
-        library.rebind(b"rtio_output",
-                       dma_record_output as *const () as u32).unwrap();
-        library.rebind(b"rtio_output_wide",
-                       dma_record_output_wide as *const () as u32).unwrap();
+        library
+            .rebind(b"rtio_output", dma_record_output as *const () as u32)
+            .unwrap();
+        library
+            .rebind(
+                b"rtio_output_wide",
+                dma_record_output_wide as *const () as u32,
+            )
+            .unwrap();
 
         DMA_RECORDER.active = true;
         send(&DmaRecordStart(name));
@@ -271,78 +289,84 @@ extern "C-unwind" fn dma_record_stop(duration: i64, enable_ddma: bool) {
         }
 
         let library = LIBRARY.as_ref().unwrap();
-        library.rebind(b"rtio_output",
-                       rtio::output as *const () as u32).unwrap();
-        library.rebind(b"rtio_output_wide",
-                       rtio::output_wide as *const () as u32).unwrap();
+        library
+            .rebind(b"rtio_output", rtio::output as *const () as u32)
+            .unwrap();
+        library
+            .rebind(b"rtio_output_wide", rtio::output_wide as *const () as u32)
+            .unwrap();
 
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {
             duration: duration as u64,
-            enable_ddma: enable_ddma
+            enable_ddma: enable_ddma,
         });
     }
 }
 
 #[inline(always)]
-unsafe fn dma_record_output_prepare(timestamp: i64, target: i32,
-                                    words: usize) -> &'static mut [u8] {
+unsafe fn dma_record_output_prepare(
+    timestamp: i64,
+    target: i32,
+    words: usize,
+) -> &'static mut [u8] {
     // See gateware/rtio/dma.py.
-    const HEADER_LENGTH: usize = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/1;
+    const HEADER_LENGTH: usize = /*length*/ 1 + /*channel*/3 + /*timestamp*/8 + /*address*/1;
     let length = HEADER_LENGTH + /*data*/words * 4;
 
     if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
         dma_record_flush()
     }
 
-    let record = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
-                                          DMA_RECORDER.data_len + length];
+    let record = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..DMA_RECORDER.data_len + length];
     DMA_RECORDER.data_len += length;
 
     let (header, data) = record.split_at_mut(HEADER_LENGTH);
 
     header.copy_from_slice(&[
-        (length    >>  0) as u8,
-        (target    >>  8) as u8,
-        (target    >>  16) as u8,
-        (target    >>  24) as u8,
-        (timestamp >>  0) as u8,
-        (timestamp >>  8) as u8,
+        (length >> 0) as u8,
+        (target >> 8) as u8,
+        (target >> 16) as u8,
+        (target >> 24) as u8,
+        (timestamp >> 0) as u8,
+        (timestamp >> 8) as u8,
         (timestamp >> 16) as u8,
         (timestamp >> 24) as u8,
         (timestamp >> 32) as u8,
         (timestamp >> 40) as u8,
         (timestamp >> 48) as u8,
         (timestamp >> 56) as u8,
-        (target    >>  0) as u8,
+        (target >> 0) as u8,
     ]);
 
     data
 }
 
-extern fn dma_record_output(target: i32, word: i32) {
+extern "C" fn dma_record_output(target: i32, word: i32) {
     unsafe {
-        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
+        let timestamp =
+            ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         let data = dma_record_output_prepare(timestamp, target, 1);
         data.copy_from_slice(&[
-            (word >>  0) as u8,
-            (word >>  8) as u8,
+            (word >> 0) as u8,
+            (word >> 8) as u8,
             (word >> 16) as u8,
             (word >> 24) as u8,
         ]);
     }
 }
 
-extern fn dma_record_output_wide(target: i32, words: &CSlice<i32>) {
+extern "C" fn dma_record_output_wide(target: i32, words: &CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
+        let timestamp =
+            ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         let mut data = dma_record_output_prepare(timestamp, target, words.len());
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
-                (word >>  0) as u8,
-                (word >>  8) as u8,
+                (word >> 0) as u8,
+                (word >> 8) as u8,
                 (word >> 16) as u8,
                 (word >> 24) as u8,
             ]);
@@ -351,7 +375,7 @@ extern fn dma_record_output_wide(target: i32, words: &CSlice<i32>) {
     }
 }
 
-extern fn dma_erase(name: &CSlice<u8>) {
+extern "C" fn dma_erase(name: &CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaEraseRequest { name: name });
@@ -360,7 +384,7 @@ extern fn dma_erase(name: &CSlice<u8>) {
 #[repr(C)]
 struct DmaTrace {
     duration: i64,
-    address:  i32,
+    address: i32,
     uses_ddma: bool,
 }
 
@@ -377,10 +401,10 @@ extern "C-unwind" fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
             }),
             None => Err(())
         }
-    }).unwrap_or_else(|()| {
+    })
+    .unwrap_or_else(|()| {
         println!("DMA trace called {:?} not found", name);
-        raise!("DMAError",
-            "DMA trace not found");
+        raise!("DMAError", "DMA trace not found");
     })
 }
 
@@ -396,7 +420,10 @@ extern "C-unwind" fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
         csr::rtio_dma::enable_write(1);
         #[cfg(has_drtio)]
         if _uses_ddma {
-            send(&DmaStartRemoteRequest { id: ptr as i32, timestamp: timestamp });
+            send(&DmaStartRemoteRequest {
+                id: ptr as i32,
+                timestamp: timestamp,
+            });
         }
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
@@ -407,9 +434,13 @@ extern "C-unwind" fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
             let channel = csr::rtio_dma::error_channel_read();
             csr::rtio_dma::error_write(1);
             if error & 1 != 0 {
-                raise!("RTIOUnderflow",
+                raise!(
+                    "RTIOUnderflow",
                     "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
-                    channel as i64, timestamp as i64, 0);
+                    channel as i64,
+                    timestamp as i64,
+                    0
+                );
             }
             if error & 2 != 0 {
                 raise!("RTIODestinationUnreachable",
@@ -451,7 +482,10 @@ extern "C-unwind" fn dma_playback(_timestamp: i64, _ptr: i32, _uses_ddma: bool) 
 extern "C-unwind" fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
     // DDMA is always used on satellites, so the `uses_ddma` setting is ignored
     // StartRemoteRequest reused as "normal" start request
-    send(&DmaStartRemoteRequest { id: ptr as i32, timestamp: timestamp });
+    send(&DmaStartRemoteRequest {
+        id: ptr as i32,
+        timestamp: timestamp,
+    });
     // skip awaitremoterequest - it's a given
     recv!(&DmaAwaitRemoteReply { timeout, error, channel, timestamp } => {
         if timeout {
@@ -471,9 +505,12 @@ extern "C-unwind" fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
     });
 }
 
-
 extern "C-unwind" fn subkernel_load_run(id: u32, destination: u8, run: bool) {
-    send(&SubkernelLoadRunRequest { id: id, destination: destination, run: run });
+    send(&SubkernelLoadRunRequest {
+        id: id,
+        destination: destination,
+        run: run,
+    });
     recv!(&SubkernelLoadRunReply { succeeded } => {
         if !succeeded {
             raise!("SubkernelError",
@@ -483,7 +520,10 @@ extern "C-unwind" fn subkernel_load_run(id: u32, destination: u8, run: bool) {
 }
 
 extern "C-unwind" fn subkernel_await_finish(id: u32, timeout: i64) {
-    send(&SubkernelAwaitFinishRequest { id: id, timeout: timeout });
+    send(&SubkernelAwaitFinishRequest {
+        id: id,
+        timeout: timeout,
+    });
     recv!(SubkernelAwaitFinishReply { status } => {
         match status {
             SubkernelStatus::NoError => (),
@@ -499,19 +539,35 @@ extern "C-unwind" fn subkernel_await_finish(id: u32, timeout: i64) {
     })
 }
 
-extern fn subkernel_send_message(id: u32, is_return: bool, destination: u8, 
-    count: u8, tag: &CSlice<u8>, data: *const *const ()) {
-    send(&SubkernelMsgSend { 
+extern "C" fn subkernel_send_message(
+    id: u32,
+    is_return: bool,
+    destination: u8,
+    count: u8,
+    tag: &CSlice<u8>,
+    data: *const *const (),
+) {
+    send(&SubkernelMsgSend {
         id: id,
         destination: if is_return { None } else { Some(destination) },
         count: count,
         tag: tag.as_ref(),
-        data: data 
+        data: data,
     });
 }
 
-extern "C-unwind" fn subkernel_await_message(id: i32, timeout: i64, tags: &CSlice<u8>, min: u8, max: u8) -> u8 {
-    send(&SubkernelMsgRecvRequest { id: id, timeout: timeout, tags: tags.as_ref() });
+extern "C-unwind" fn subkernel_await_message(
+    id: i32,
+    timeout: i64,
+    tags: &CSlice<u8>,
+    min: u8,
+    max: u8,
+) -> u8 {
+    send(&SubkernelMsgRecvRequest {
+        id: id,
+        timeout: timeout,
+        tags: tags.as_ref(),
+    });
     recv!(SubkernelMsgRecvReply { status, count } => {
         match status {
             SubkernelStatus::NoError => {
@@ -537,13 +593,13 @@ extern "C-unwind" fn subkernel_await_message(id: i32, timeout: i64, tags: &CSlic
 unsafe fn attribute_writeback(typeinfo: *const ()) {
     struct Attr {
         offset: usize,
-        tag:    CSlice<'static, u8>,
-        name:   CSlice<'static, u8>
+        tag: CSlice<'static, u8>,
+        name: CSlice<'static, u8>,
     }
 
     struct Type {
         attributes: *const *const Attr,
-        objects:    *const *const ()
+        objects: *const *const (),
     }
 
     let mut tys = typeinfo as *const *const Type;
@@ -562,11 +618,16 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 attributes = attributes.offset(1);
 
                 if (*attribute).tag.len() > 0 {
-                    rpc_send_async(0, &(*attribute).tag, [
-                        &object as *const _ as *const (),
-                        &(*attribute).name as *const _ as *const (),
-                        (object as usize + (*attribute).offset) as *const ()
-                    ].as_ptr());
+                    rpc_send_async(
+                        0,
+                        &(*attribute).tag,
+                        [
+                            &object as *const _ as *const (),
+                            &(*attribute).name as *const _ as *const (),
+                            (object as usize + (*attribute).offset) as *const (),
+                        ]
+                        .as_ptr(),
+                    );
                 }
             }
         }
@@ -578,9 +639,10 @@ static mut STACK_GUARD_BASE: usize = 0x0;
 #[no_mangle]
 pub unsafe fn main() {
     eh_artiq::reset_exception_buffer(KERNELCPU_PAYLOAD_ADDRESS);
-    let image = slice::from_raw_parts_mut(kernel_proto::KERNELCPU_PAYLOAD_ADDRESS as *mut u8,
-                                          kernel_proto::KERNELCPU_LAST_ADDRESS -
-                                          kernel_proto::KERNELCPU_PAYLOAD_ADDRESS);
+    let image = slice::from_raw_parts_mut(
+        kernel_proto::KERNELCPU_PAYLOAD_ADDRESS as *mut u8,
+        kernel_proto::KERNELCPU_LAST_ADDRESS - kernel_proto::KERNELCPU_PAYLOAD_ADDRESS,
+    );
 
     let library = recv!(&LoadRequest(library) => {
         match Library::load(library, image, &api::resolve) {
@@ -649,7 +711,12 @@ pub unsafe extern "C-unwind" fn exception(_regs: *const u32) {
                    cause, u32::try_from(pc).unwrap(), mtval);
         }
     }
-    panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
+    panic!(
+        "{:?} at PC {:#08x}, trap value {:#08x}",
+        cause,
+        u32::try_from(pc).unwrap(),
+        mtval
+    );
 }
 
 #[no_mangle]
