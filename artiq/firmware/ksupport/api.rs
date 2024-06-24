@@ -187,4 +187,10 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(spi_set_config = ::nrt_bus::spi::set_config),
     api!(spi_write = ::nrt_bus::spi::write),
     api!(spi_read = ::nrt_bus::spi::read),
+    /* Sinara */
+    api!(ttl_out_count = ::sinara::ttl_out_count),
+    #[cfg(has_sinara_ttl_out)]
+    api!(ttl_out_on = ::sinara::ttl_out_on),
+    #[cfg(has_sinara_ttl_out)]
+    api!(ttl_out_off = ::sinara::ttl_out_off),
 ];

@@ -5,5 +5,15 @@
     "min_artiq_version": "7.0",
     "hw_rev": "v2.0",
     "base": "standalone",
-    "peripherals": []
+    "peripherals": [
+	{
+	    "type": "dio",
+	    "board": "DIO_BNC",
+	    "ports": [
+		0
+	    ],
+	    "bank_direction_low": "output",
+	    "bank_direction_high": "output"
+	}
+    ]
 }

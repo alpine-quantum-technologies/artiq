@@ -12,6 +12,10 @@ crate-type = ["staticlib"]
 [build-dependencies]
 build_misoc = { path = "../libbuild_misoc" }
 ddb_parser = { path = "../ddb_parser" }
+itertools = "0.12"
+prettyplease = "0.2.16"
+quote = "1"
+syn = "2"
 
 [dependencies]
 cslice = { version = "0.3" }
