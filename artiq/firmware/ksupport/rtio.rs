@@ -11,34 +11,36 @@ mod imp {
     use rtio::TimestampedData;
 
     use board_misoc::csr;
-    use ::send;
-    use ::recv;
     use kernel_proto::*;
+    use recv;
+    use send;
 
-    pub const RTIO_O_STATUS_WAIT:                      u8 = 1;
-    pub const RTIO_O_STATUS_UNDERFLOW:                 u8 = 2;
-    pub const RTIO_O_STATUS_DESTINATION_UNREACHABLE:   u8 = 4;
-    pub const RTIO_I_STATUS_WAIT_EVENT:                u8 = 1;
-    pub const RTIO_I_STATUS_OVERFLOW:                  u8 = 2;
-    pub const RTIO_I_STATUS_WAIT_STATUS:               u8 = 4;
-    pub const RTIO_I_STATUS_DESTINATION_UNREACHABLE:   u8 = 8;
+    pub const RTIO_O_STATUS_WAIT: u8 = 1;
+    pub const RTIO_O_STATUS_UNDERFLOW: u8 = 2;
+    pub const RTIO_O_STATUS_DESTINATION_UNREACHABLE: u8 = 4;
+    pub const RTIO_I_STATUS_WAIT_EVENT: u8 = 1;
+    pub const RTIO_I_STATUS_OVERFLOW: u8 = 2;
+    pub const RTIO_I_STATUS_WAIT_STATUS: u8 = 4;
+    pub const RTIO_I_STATUS_DESTINATION_UNREACHABLE: u8 = 8;
 
     const OFFSET_MULTIPLE: isize = (csr::CONFIG_DATA_WIDTH_BYTES / 4) as isize;
 
-    pub extern fn init() {
+    pub extern "C" fn init() {
         send(&RtioInitRequest);
     }
 
-    pub extern fn get_destination_status(destination: i32) -> bool {
+    pub extern "C" fn get_destination_status(destination: i32) -> bool {
         if 0 <= destination && destination <= 255 {
-            send(&RtioDestinationStatusRequest { destination: destination as u8 });
+            send(&RtioDestinationStatusRequest {
+                destination: destination as u8,
+            });
             recv!(&RtioDestinationStatusReply { up } => up)
         } else {
             false
         }
     }
 
-    pub extern fn get_counter() -> i64 {
+    pub extern "C" fn get_counter() -> i64 {
         unsafe {
             csr::rtio::counter_update_write(1);
             csr::rtio::counter_read() as i64
@@ -49,35 +51,48 @@ mod imp {
     #[inline(always)]
     pub unsafe fn rtio_o_data_write(offset: usize, data: u32) {
         write_volatile(
-            csr::rtio::O_DATA_ADDR.offset(OFFSET_MULTIPLE*(csr::rtio::O_DATA_SIZE - 1 - offset) as isize),
-            data);
+            csr::rtio::O_DATA_ADDR
+                .offset(OFFSET_MULTIPLE * (csr::rtio::O_DATA_SIZE - 1 - offset) as isize),
+            data,
+        );
     }
 
     #[inline(always)]
     pub unsafe fn rtio_i_data_read(offset: usize) -> u32 {
         read_volatile(
-            csr::rtio::I_DATA_ADDR.offset(OFFSET_MULTIPLE*(csr::rtio::I_DATA_SIZE - 1 - offset) as isize))
+            csr::rtio::I_DATA_ADDR
+                .offset(OFFSET_MULTIPLE * (csr::rtio::I_DATA_SIZE - 1 - offset) as isize),
+        )
     }
 
     #[inline(never)]
     unsafe fn process_exceptional_status(channel: i32, status: u8) {
-        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
+        let timestamp =
+            ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         if status & RTIO_O_STATUS_WAIT != 0 {
             while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
         }
         if status & RTIO_O_STATUS_UNDERFLOW != 0 {
-            raise!("RTIOUnderflow",
+            raise!(
+                "RTIOUnderflow",
                 "RTIO underflow at channel {rtio_channel_info:0}, {1} mu, slack {2} mu",
-                channel as i64, timestamp, timestamp - get_counter());
+                channel as i64,
+                timestamp,
+                timestamp - get_counter()
+            );
         }
         if status & RTIO_O_STATUS_DESTINATION_UNREACHABLE != 0 {
-            raise!("RTIODestinationUnreachable",
+            raise!(
+                "RTIODestinationUnreachable",
                 "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
-                channel as i64, timestamp, 0);
+                channel as i64,
+                timestamp,
+                0
+            );
         }
     }
 
-    pub extern fn output(target: i32, data: i32) {
+    pub extern "C" fn output(target: i32, data: i32) {
         unsafe {
             csr::rtio::target_write(target as u32);
             // writing target clears o_data
@@ -89,7 +104,7 @@ mod imp {
         }
     }
 
-    pub extern fn output_wide(target: i32, data: &CSlice<i32>) {
+    pub extern "C" fn output_wide(target: i32, data: &CSlice<i32>) {
         unsafe {
             csr::rtio::target_write(target as u32);
             // writing target clears o_data
@@ -103,7 +118,7 @@ mod imp {
         }
     }
 
-    pub extern fn input_timestamp(timeout: i64, channel: i32) -> i64 {
+    pub extern "C" fn input_timestamp(timeout: i64, channel: i32) -> i64 {
         unsafe {
             csr::rtio::target_write((channel as u32) << 8);
             csr::rtio::i_timeout_write(timeout as u64);
@@ -114,24 +129,32 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                raise!("RTIOOverflow",
+                raise!(
+                    "RTIOOverflow",
                     "RTIO input overflow on channel {rtio_channel_info:0}",
-                    channel as i64, 0, 0);
+                    channel as i64,
+                    0,
+                    0
+                );
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
-                return -1
+                return -1;
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
-                raise!("RTIODestinationUnreachable",
+                raise!(
+                    "RTIODestinationUnreachable",
                     "RTIO destination unreachable, input, on channel {rtio_channel_info:0}",
-                    channel as i64, 0, 0);
+                    channel as i64,
+                    0,
+                    0
+                );
             }
 
             csr::rtio::i_timestamp_read() as i64
         }
     }
 
-    pub extern fn input_data(channel: i32) -> i32 {
+    pub extern "C" fn input_data(channel: i32) -> i32 {
         unsafe {
             csr::rtio::target_write((channel as u32) << 8);
             csr::rtio::i_timeout_write(0xffffffff_ffffffff);
@@ -142,21 +165,29 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                raise!("RTIOOverflow",
+                raise!(
+                    "RTIOOverflow",
                     "RTIO input overflow on channel {rtio_channel_info:0}",
-                    channel as i64, 0, 0);
+                    channel as i64,
+                    0,
+                    0
+                );
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
-                raise!("RTIODestinationUnreachable",
+                raise!(
+                    "RTIODestinationUnreachable",
                     "RTIO destination unreachable, input, on channel {rtio_channel_info:0}",
-                    channel as i64, 0, 0);
+                    channel as i64,
+                    0,
+                    0
+                );
             }
 
             rtio_i_data_read(0) as i32
         }
     }
 
-    pub extern fn input_timestamped_data(timeout: i64, channel: i32) -> TimestampedData {
+    pub extern "C" fn input_timestamped_data(timeout: i64, channel: i32) -> TimestampedData {
         unsafe {
             csr::rtio::target_write((channel as u32) << 8);
             csr::rtio::i_timeout_write(timeout as u64);
@@ -167,22 +198,33 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                raise!("RTIOOverflow",
+                raise!(
+                    "RTIOOverflow",
                     "RTIO input overflow on channel {rtio_channel_info:0}",
-                    channel as i64, 0, 0);
+                    channel as i64,
+                    0,
+                    0
+                );
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
-                return TimestampedData { timestamp: -1, data: 0 }
+                return TimestampedData {
+                    timestamp: -1,
+                    data: 0,
+                };
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
-                raise!("RTIODestinationUnreachable",
+                raise!(
+                    "RTIODestinationUnreachable",
                     "RTIO destination unreachable, input, on channel {rtio_channel_info:0}",
-                    channel as i64, 0, 0);
+                    channel as i64,
+                    0,
+                    0
+                );
             }
 
             TimestampedData {
                 timestamp: csr::rtio::i_timestamp_read() as i64,
-                data: rtio_i_data_read(0) as i32
+                data: rtio_i_data_read(0) as i32,
             }
         }
     }
@@ -219,35 +261,35 @@ mod imp {
     use cslice::CSlice;
     use rtio::TimestampedData;
 
-    pub extern fn init() {
+    pub extern "C" fn init() {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn get_destination_status(_destination: i32) -> bool {
+    pub extern "C" fn get_destination_status(_destination: i32) -> bool {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn get_counter() -> i64 {
+    pub extern "C" fn get_counter() -> i64 {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn output(_target: i32, _data: i32) {
+    pub extern "C" fn output(_target: i32, _data: i32) {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn output_wide(_target: i32, _data: &CSlice<i32>) {
+    pub extern "C" fn output_wide(_target: i32, _data: &CSlice<i32>) {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn input_timestamp(_timeout: i64, _channel: i32) -> i64 {
+    pub extern "C" fn input_timestamp(_timeout: i64, _channel: i32) -> i64 {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn input_data(_channel: i32) -> i32 {
+    pub extern "C" fn input_data(_channel: i32) -> i32 {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn input_timestamped_data(_timeout: i64, _channel: i32) -> TimestampedData {
+    pub extern "C" fn input_timestamped_data(_timeout: i64, _channel: i32) -> TimestampedData {
         unimplemented!("not(has_rtio)")
     }
 
