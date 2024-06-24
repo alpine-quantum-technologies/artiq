@@ -848,6 +848,9 @@ def main():
     if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
         raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
 
+    soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
+
+    args.variant = description["variant"]
     build_args = builder_argdict(args)
 
     # This path must match the hardcoded BUILDINC_DIRECTORY in misoc:
@@ -860,8 +863,6 @@ def main():
         artiq_ddb_template.process(f, description, [])
     print(f"Device DB written to: {ddb_path.resolve()}")
 
-    soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
-    args.variant = description["variant"]
     build_artiq_soc(soc, build_args)
 
 
