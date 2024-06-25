@@ -5,8 +5,9 @@ use pyo3::types::{PyDict, PyModule};
 use std::collections::HashMap;
 
 mod devices;
-pub use devices::Device;
+mod i2c;
 
+pub use devices::Device;
 pub type DeviceDb = HashMap<String, Device>;
 
 #[derive(Debug, Error)]
