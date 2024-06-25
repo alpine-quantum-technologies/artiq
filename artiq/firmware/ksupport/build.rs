@@ -28,8 +28,8 @@ fn main() {
         .join("device_db.py");
     println!("cargo:rerun-if-changed={}", ddb_path.to_str().unwrap());
 
-    let ddb = fs::read_to_string(&ddb_path).unwrap();
-    let ddb = ddb_parser::parse(&ddb).unwrap();
+    let ddb_py = fs::read_to_string(&ddb_path).unwrap();
+    let ddb = ddb_parser::parse(&ddb_py).unwrap();
 
     let ttl_out_channels: Vec<_> = ddb
         .iter()

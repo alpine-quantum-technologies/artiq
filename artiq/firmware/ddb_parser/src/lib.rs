@@ -31,9 +31,7 @@ pub fn parse(python_code: &str) -> Result<DeviceDb, Error> {
             PyModule::from_code(py, PREPROCESSING_CODE, "preprocessing.py", "preprocessing")?;
 
         let json: String = pp_module.getattr("preprocess")?.call1((ddb,))?.extract()?;
-        let ddb: DeviceDb = serde_json::from_str(&json)?;
-
-        Ok(ddb)
+        Ok(serde_json::from_str(&json)?)
     })
 }
 
