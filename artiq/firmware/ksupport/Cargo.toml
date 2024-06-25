@@ -14,7 +14,9 @@ build_misoc = { path = "../libbuild_misoc" }
 ddb_parser = { path = "../ddb_parser" }
 itertools = "0.12"
 prettyplease = "0.2.16"
+proc-macro2 = "=1.0.86"  # must match a patched version working with rustc-1.57-nightly
 quote = "1"
+regex = "1"
 syn = "2"
 
 [dependencies]
