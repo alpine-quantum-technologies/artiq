@@ -3,6 +3,7 @@
 import argparse
 import logging
 from packaging.version import Version
+from pathlib import Path
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -29,6 +30,7 @@ from artiq.gateware.drtio import *
 from artiq.gateware.wrpll import wrpll
 from artiq.build_soc import *
 from artiq.coredevice import jsondesc
+from artiq.frontend import artiq_ddb_template
 
 logger = logging.getLogger(__name__)
 
@@ -847,8 +849,21 @@ def main():
         raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
+
     args.variant = description["variant"]
-    build_artiq_soc(soc, builder_argdict(args))
+    build_args = builder_argdict(args)
+
+    # This path must match the hardcoded BUILDINC_DIRECTORY in misoc:
+    buildinc_directory = Path(build_args["output_dir"]) / "software" / "include"
+
+    # Generate device_db (satellites not supported!)
+    ddb_path = buildinc_directory / "generated" / "device_db.py"
+    ddb_path.parent.mkdir(parents=True, exist_ok=True)
+    with ddb_path.open("w") as f:
+        artiq_ddb_template.process(f, description, [])
+    print(f"Device DB written to: {ddb_path.resolve()}")
+
+    build_artiq_soc(soc, build_args)
 
 
 if __name__ == "__main__":

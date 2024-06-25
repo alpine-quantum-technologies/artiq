@@ -225,6 +225,15 @@
         runScript = "vivado";
       };
 
+      firmwareCargoDeps = rustPlatform.importCargoLock {
+        lockFile = ./artiq/firmware/Cargo.lock;
+        outputHashes = {
+          "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
+          "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
+          "proc-macro2-1.0.86" = "sha256-bK0ls5ni9TyMB2xyi4wMFyIFD7v+pTKE55uqhQBsusg=";
+        };
+      };
+
       # ARTIQ source for software builds.
       artiq-software-src = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
@@ -254,13 +263,7 @@
         pkgs.stdenv.mkDerivation {
           name = "artiq-software-kasli-${variant}";
           phases = ["buildPhase" "installPhase"];
-          cargoDeps = rustPlatform.importCargoLock {
-            lockFile = ./artiq/firmware/Cargo.lock;
-            outputHashes = {
-              "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
-              "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
-            };
-          };
+          cargoDeps = firmwareCargoDeps;
 
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [
@@ -298,13 +301,8 @@
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
-          cargoDeps = rustPlatform.importCargoLock {
-            lockFile = ./artiq/firmware/Cargo.lock;
-            outputHashes = {
-              "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
-              "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
-            };
-          };
+          cargoDeps = firmwareCargoDeps;
+
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging ]))
             rust
