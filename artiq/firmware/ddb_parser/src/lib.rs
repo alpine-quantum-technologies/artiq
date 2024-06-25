@@ -40,12 +40,12 @@ pub fn parse(python_code: &str) -> Result<DeviceDb, Error> {
 const PREPROCESSING_CODE: &str = indoc! {r#"
       import json
 
-      def add_qual_class(entry):
+      def add_qual_class(entry: dict) -> dict:
           if (module := entry.get("module")) and (class_ := entry.get("class")):
               entry["_qualclass"] = f"{module}.{class_}"
           return entry
 
-      def preprocess(ddb):
+      def preprocess(ddb: dict) -> str:
           return json.dumps({key: add_qual_class(value) for key, value in ddb.items()})
       "#
 };
