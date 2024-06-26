@@ -2,7 +2,7 @@ use crate::i2c;
 use serde::Deserialize;
 use serde_with::{serde_as, TryFromInto};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(tag = "_qualclass")]
 pub enum Device {
     #[serde(rename = "artiq.coredevice.core.Core")]
@@ -36,7 +36,7 @@ pub enum Device {
     Unknown(Ignored),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Core {
     pub host: String,
     pub ref_period: f32,
@@ -44,7 +44,7 @@ pub struct Core {
     pub target: Option<Target>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub enum Target {
     #[serde(rename = "rv32ima")]
     Kasli1,
@@ -54,36 +54,36 @@ pub enum Target {
     KasliSoc,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct I2cSwitch {
     pub busno: Option<i32>,
     pub address: Option<u8>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct TtlOut {
     pub channel: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct TtlInOut {
     pub channel: i32,
     pub gate_latency_mu: Option<i32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct TtlClockGen {
     pub channel: i32,
     pub acc_width: Option<i32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct EdgeCounter {
     pub channel: i32,
     pub gateware_width: Option<i32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct UrukulCpld {
     pub spi_device: String,
     pub io_update_device: Option<String>,
@@ -98,7 +98,7 @@ pub struct UrukulCpld {
     pub sync_div: Option<u8>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct Ad9910 {
     pub cpld_device: String,
     pub chip_select: i32,
@@ -120,7 +120,7 @@ pub enum MaybeOnEeprom {
     Value(u32),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 #[serde(try_from = "String")]
 pub struct EepromAddress {
     pub eeprom_device: String,
@@ -145,7 +145,7 @@ impl TryFrom<String> for EepromAddress {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct Phaser {
     pub channel_base: i32,
     pub miso_delay: Option<i32>,
@@ -154,7 +154,7 @@ pub struct Phaser {
     pub sync_dly: Option<i32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct Spi2Master {
     pub channel: i32,
     pub div: Option<i32>,
@@ -162,13 +162,13 @@ pub struct Spi2Master {
 }
 
 #[serde_as]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct KasliEeprom {
     #[serde_as(as = "TryFromInto<&str>")]
     pub port: i2c::KasliPort,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 pub struct Ignored {}
 
 /// Deserialize optional booleans from integers.
