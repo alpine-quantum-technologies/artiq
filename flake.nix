@@ -287,8 +287,15 @@
 
           checkPhase =
             ''
-            cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
+            echo 'Check ksupport format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/ksupport/Cargo.toml -- --check
+
+            echo 'Check ddb_parser format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml -- --check
+            echo 'Lint ddb_parser'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml  -- -Dwarnings
+            echo 'Test ddb_parser'
+            cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
             '';
 
           installPhase =
