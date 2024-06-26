@@ -1,10 +1,14 @@
 extern crate ddb_parser;
 extern crate itertools;
 extern crate prettyplease;
+extern crate proc_macro2;
 extern crate quote;
+extern crate regex;
 extern crate syn;
 
-use ddb_parser::Device;
+use ddb_parser::{Device, DeviceDb};
+use proc_macro2::TokenStream;
+use regex::Regex;
 use std::path::Path;
 use std::{env, fs};
 
@@ -31,11 +35,48 @@ fn main() {
     let ddb_py = fs::read_to_string(&ddb_path).unwrap();
     let ddb = ddb_parser::parse(&ddb_py).unwrap();
 
-    let ttl_out_channels: Vec<_> = ddb
+    let code = vec![led_code(&ddb), ttl_out_code(&ddb)];
+
+    let definition_tokens = code.iter().map(|entry| &entry.definition_tokens);
+    let instantiation_tokens = code.iter().map(|entry| &entry.instantiation_tokens);
+
+    #[rustfmt::skip]
+    let output = quote! {
+	pub struct Peripherals {
+	    #(#definition_tokens),*
+	}
+
+	pub const PERIPHERALS: Peripherals = Peripherals {
+            #(#instantiation_tokens),*
+	};
+    };
+
+    let syntax_tree = syn::parse2(output).unwrap();
+    let formatted = prettyplease::unparse(&syntax_tree);
+
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("peripherals.rs");
+    fs::write(dest_path, formatted).unwrap();
+}
+
+/// `PERIPHERALS` data code for a specific device type.
+struct DeviceTypeCode {
+    definition_tokens: TokenStream,
+    instantiation_tokens: TokenStream,
+}
+
+/// Emit code for the `PERIPHERALS` data for standalone `TTLOut` devices.
+///
+/// Standalone `TTLOut` devices have names matching `ttl[0-9]+`.
+/// This excludes in particular LEDs and Urukul-linked signaling lines.
+fn ttl_out_code(ddb: &DeviceDb) -> DeviceTypeCode {
+    let key_regex = Regex::new(r"^ttl\d+$").unwrap();
+
+    let channels: Vec<_> = ddb
         .iter()
-        .filter_map(|elem| match elem {
+        .filter_map(|entry| match entry {
             (key, Device::TtlOut { arguments }) => {
-                if key.contains("ttl") {
+                if key_regex.is_match(key) {
                     Some(arguments.channel)
                 } else {
                     None
@@ -46,26 +87,51 @@ fn main() {
         .sorted()
         .collect();
 
-    let num_ttl_out_channels = ttl_out_channels.len();
-    if num_ttl_out_channels > 0 {
+    let count = channels.len();
+    if count > 0 {
         println!("cargo:rustc-cfg={}", "has_sinara_ttl_out");
     }
 
-    #[rustfmt::skip]
-    let output = quote! {
-	pub struct Peripherals {
-            ttl_out: [ttl::TtlOut; #num_ttl_out_channels],
-	}
+    DeviceTypeCode {
+        definition_tokens: quote! {
+            ttl_out: [ttl::TtlOut; #count]
+        },
+        instantiation_tokens: quote! {
+            ttl_out: [#( ttl::TtlOut { channel: #channels } ),*]
+        },
+    }
+}
 
-	pub const PERIPHERALS: Peripherals = Peripherals {
-            ttl_out: [#( ttl::TtlOut { channel: #ttl_out_channels } ),*],
-	};
-    };
+/// Emit code for the `PERIPHERALS` data for LED devices.
+fn led_code(ddb: &DeviceDb) -> DeviceTypeCode {
+    let key_regex = Regex::new(r"^led\d+$").unwrap();
 
-    let syntax_tree = syn::parse2(output).unwrap();
-    let formatted = prettyplease::unparse(&syntax_tree);
+    let channels: Vec<_> = ddb
+        .iter()
+        .filter_map(|entry| match entry {
+            (key, Device::TtlOut { arguments }) => {
+                if key_regex.is_match(key) {
+                    Some(arguments.channel)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        })
+        .sorted()
+        .collect();
 
-    let out_dir = env::var_os("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join("peripherals.rs");
-    fs::write(dest_path, formatted).unwrap();
+    let count = channels.len();
+    if count > 0 {
+        println!("cargo:rustc-cfg={}", "has_sinara_led");
+    }
+
+    DeviceTypeCode {
+        definition_tokens: quote! {
+            led: [ttl::TtlOut; #count]
+        },
+        instantiation_tokens: quote! {
+            led: [#( ttl::TtlOut { channel: #channels } ),*]
+        },
+    }
 }
