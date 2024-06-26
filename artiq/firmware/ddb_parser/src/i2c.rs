@@ -1,4 +1,7 @@
-#[derive(Debug, Eq, PartialEq, Clone)]
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use std::fmt;
+
+#[derive(Debug, Eq, PartialEq, Clone, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum KasliPort {
     Eem0 = 7,
@@ -48,8 +51,8 @@ impl<'a> TryFrom<&'a str> for KasliPort {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InvalidKasliPort<'a>(&'a str);
 
-impl<'a> core::fmt::Display for InvalidKasliPort<'a> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl<'a> fmt::Display for InvalidKasliPort<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Invalid Kasli I2C port: {}", self.0)
     }
 }
