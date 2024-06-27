@@ -262,7 +262,7 @@
       makeKasliSoftwarePackage = { variant }:
         pkgs.stdenv.mkDerivation {
           name = "artiq-software-kasli-${variant}";
-          phases = ["buildPhase" "installPhase"];
+          phases = ["buildPhase" "checkPhase" "installPhase"];
           cargoDeps = firmwareCargoDeps;
 
           nativeBuildInputs = [
@@ -285,6 +285,19 @@
             python -m artiq.gateware.targets.kasli --no-compile-gateware ${self}/${variant}.json
             '';
 
+          checkPhase =
+            ''
+            echo 'Check ksupport format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/ksupport/Cargo.toml -- --check
+
+            echo 'Check ddb_parser format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml -- --check
+            echo 'Lint ddb_parser'
+            cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml  -- -Dwarnings
+            echo 'Test ddb_parser'
+            cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
+            '';
+
           installPhase =
             ''
             mkdir $out
@@ -294,6 +307,7 @@
             fi
             '';
 
+          doCheck = true;
           dontFixup = true;
         };
 
