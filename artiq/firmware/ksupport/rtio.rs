@@ -47,6 +47,21 @@ mod imp {
         }
     }
 
+    pub extern "C" fn at_mu(t: i64) {
+        unsafe {
+            csr::rtio::now_hi_write((t >> 32) as u32);
+            csr::rtio::now_lo_write(t as u32);
+        }
+    }
+
+    pub extern "C" fn delay_mu(d: i64) {
+        at_mu(now_mu() + d)
+    }
+
+    pub extern "C" fn now_mu() -> i64 {
+        unsafe { ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64) }
+    }
+
     // writing the LSB of o_data (offset=0) triggers the RTIO write
     #[inline(always)]
     pub unsafe fn rtio_o_data_write(offset: usize, data: u32) {
@@ -270,6 +285,18 @@ mod imp {
     }
 
     pub extern "C" fn get_counter() -> i64 {
+        unimplemented!("not(has_rtio)")
+    }
+
+    pub extern "C" fn at_mu(t: i64) {
+        unimplemented!("not(has_rtio)")
+    }
+
+    pub extern "C" fn delay_mu(d: i64) {
+        unimplemented!("not(has_rtio)")
+    }
+
+    pub extern "C" fn now_mu() -> i64 {
         unimplemented!("not(has_rtio)")
     }
 
