@@ -13,6 +13,12 @@ extern crate io;
 extern crate proto_artiq;
 extern crate riscv;
 
+#[macro_use(bitflags)]
+extern crate bitflags;
+
+#[macro_use(IntoPrimitive, TryFromPrimitive)]
+extern crate num_enum;
+
 use board_artiq::{mailbox, rpc_queue};
 use board_misoc::csr;
 use core::{convert::TryFrom, mem, ptr, slice, str};
@@ -111,6 +117,7 @@ mod eh_artiq;
 mod nrt_bus;
 mod rtio;
 mod sinara;
+mod spi2;
 
 static mut LIBRARY: Option<Library<'static>> = None;
 

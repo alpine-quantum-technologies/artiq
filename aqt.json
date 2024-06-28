@@ -6,14 +6,24 @@
     "hw_rev": "v2.0",
     "base": "standalone",
     "peripherals": [
-	{
-	    "type": "dio",
-	    "board": "DIO_BNC",
-	    "ports": [
-		0
-	    ],
-	    "bank_direction_low": "output",
-	    "bank_direction_high": "output"
-	}
+	        {
+            "type": "dio",
+            "board": "DIO_BNC",
+            "ports": [
+                0
+            ],
+            "edge_counter": true,
+            "bank_direction_low": "input",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "urukul",
+            "ports": [
+                1,
+		2
+            ],
+	    "synchronization": true,
+	    "clk_sel": 2
+        }
     ]
 }
