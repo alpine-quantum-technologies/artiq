@@ -4,7 +4,7 @@ use itertools::Itertools;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 
-pub(crate) fn emit_code(ddb: &DeviceDb, core: &ddb_parser::devices::Core) -> DeviceTypeCode {
+pub(crate) fn emit_code(ddb: &DeviceDb, core: &ddb_parser::core::Core) -> DeviceTypeCode {
     let urukuls: Vec<_> = ddb
         .iter()
         .filter_map(|entry| match entry {
@@ -51,7 +51,7 @@ struct Urukul<'a> {
     sync_div: u8,
 
     /// Core device.
-    core: &'a ddb_parser::devices::Core,
+    core: &'a ddb_parser::core::Core,
 }
 
 impl<'a> Urukul<'a> {
@@ -67,7 +67,7 @@ impl<'a> Urukul<'a> {
         key: &str,
         dev: &ddb_parser::devices::UrukulCpld,
         ddb: &DeviceDb,
-        core: &'a ddb_parser::devices::Core,
+        core: &'a ddb_parser::core::Core,
     ) -> Self {
         let (sync_sel, sync_div) = if dev.sync_device.is_some() {
             (
@@ -109,7 +109,7 @@ impl<'a> Urukul<'a> {
 
     fn bus_tokens(&self) -> TokenStream {
         let channel = self.spi_channel;
-        let ref_period_mu = self.core.ref_multiplier.unwrap_or(8) as i64;
+        let ref_period_mu = self.core.ref_multiplier as i64;
 
         #[rustfmt::skip]
 	quote! {

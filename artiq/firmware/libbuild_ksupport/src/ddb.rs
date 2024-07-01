@@ -24,7 +24,7 @@ pub(crate) fn spi_device<'a, 'b>(
 ///
 /// # Arguments
 /// - `ddb` - device DB to search in.
-pub(crate) fn core(ddb: &DeviceDb) -> Option<&ddb_parser::devices::Core> {
+pub(crate) fn core(ddb: &DeviceDb) -> Option<&ddb_parser::core::Core> {
     for entry in ddb {
         if let Device::Core { arguments } = entry.1 {
             return Some(arguments);

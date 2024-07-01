@@ -73,7 +73,7 @@ impl Bus {
 
         Ok(ConfiguredBus {
             channel: self.channel,
-            xfer_duration_mu: xfer_duration_mu(div, length),
+            xfer_duration_mu: xfer_duration_mu(div, length, self.ref_period_mu),
         })
     }
 }
@@ -100,7 +100,6 @@ impl ConfiguredBus {
     }
 }
 
-fn xfer_duration_mu(div: i32, length: i32) -> i64 {
-    let ref_multiplier = 8; // TODO: read from device_db
+fn xfer_duration_mu(div: i32, length: i32, ref_multiplier: i64) -> i64 {
     ((length as i64) + 1) * ((div as i64) + 1) * ref_multiplier
 }
