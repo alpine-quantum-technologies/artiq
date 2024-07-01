@@ -4,7 +4,7 @@ use indoc::indoc;
 use pyo3::types::{PyDict, PyModule};
 use std::collections::HashMap;
 
-mod devices;
+pub mod devices;
 mod i2c;
 
 pub use devices::Device;

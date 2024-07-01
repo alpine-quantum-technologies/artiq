@@ -196,4 +196,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(led_count = ::sinara::led_count),
     api!(led_on = ::sinara::led_on),
     api!(led_off = ::sinara::led_off),
+    // Urukul
+    api!(urukul_init = ::sinara::urukul_init),
+    api!(urukul_count = ::sinara::urukul_count),
 ];
