@@ -7,6 +7,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+sinara_config = { path = "../libsinara_config" }
 indoc = "2"
 num_enum = { version = "0.7.2", default-features = false }
 pyo3 = { version = "0.20", features = ["auto-initialize"], default-features = false }

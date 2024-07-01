@@ -12,6 +12,7 @@ extern crate eh;
 extern crate io;
 extern crate proto_artiq;
 extern crate riscv;
+extern crate sinara_config;
 
 #[macro_use(bitflags)]
 extern crate bitflags;

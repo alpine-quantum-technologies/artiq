@@ -1,0 +1,16 @@
+[package]
+name = "build_ksupport"
+description = "Tooling for the ksupport build script."
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ddb_parser = { path = "../ddb_parser" }
+sinara_config = { path = "../libsinara_config" }
+itertools = "0.12"
+lazy_static = "1.5"
+prettyplease = "0.2.16"
+proc-macro2 = "=1.0.86" # must match a patched version working with rustc 1.57-nightly
+quote = "1"
+regex = "1"
+syn = "2"

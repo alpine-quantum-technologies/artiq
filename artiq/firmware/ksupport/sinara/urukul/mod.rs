@@ -2,7 +2,7 @@ mod config;
 mod cpld;
 mod status;
 
-pub use self::config::{ClkDiv, ClkSel, Config, SyncSel};
+pub use self::config::Config;
 pub use self::cpld::Cpld;
 pub use self::status::{IfcMode, Status};
 
