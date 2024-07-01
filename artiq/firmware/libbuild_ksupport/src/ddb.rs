@@ -8,7 +8,7 @@ use ddb_parser::{Device, DeviceDb};
 pub(crate) fn spi_device<'a, 'b>(
     key: &'a str,
     ddb: &'b DeviceDb,
-) -> Option<&'b ddb_parser::devices::Spi2Master> {
+) -> Option<&'b ddb_parser::spi2::Master> {
     for entry in ddb {
         match entry {
             (ddb_key, Device::Spi2Master { arguments }) if key == ddb_key => {
