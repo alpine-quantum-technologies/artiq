@@ -289,11 +289,22 @@
             ''
             echo 'Check ksupport format'
             cargo fmt --manifest-path ${self}/artiq/firmware/ksupport/Cargo.toml -- --check
-
             echo 'Check ddb_parser format'
             cargo fmt --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml -- --check
+            echo 'Check build_ksupport format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/libbuild_ksupport/Cargo.toml -- --check
+            echo 'Check sinara_config format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- --check
+
             echo 'Lint ddb_parser'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml  -- -Dwarnings
+
+            echo 'Lint build_ksupport'
+            cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libbuild_ksupport/Cargo.toml -- -Dwarnings
+
+            echo 'Lint sinara_config'
+            cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- -Dwarnings
+
             echo 'Test ddb_parser'
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
             '';

@@ -1,0 +1,12 @@
+[package]
+name = "sinara_config"
+description = "Sinara peripherals configuration data models."
+authors = ["Alpine Quantum Technologies GmbH <info@aqt.eu>"]
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num_enum = { version = "0.7.2", default-features = false }
+serde = { version = "1", default-features = false }
+serde_repr = "0.1"

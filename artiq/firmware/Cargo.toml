@@ -1,5 +1,6 @@
 [workspace]
 members = ["bootloader", "runtime", "ksupport", "satman"]
+resolver = "2"
 
 [profile.dev]
 incremental = false # incompatible with LTO

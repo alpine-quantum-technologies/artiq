@@ -89,9 +89,9 @@ pub struct UrukulCpld {
     pub io_update_device: Option<String>,
     pub dds_reset_device: Option<String>,
     pub sync_device: Option<String>,
-    pub sync_sel: Option<u8>,
-    pub clk_sel: Option<u8>,
-    pub clk_div: Option<u8>,
+    pub sync_sel: Option<sinara_config::urukul::SyncSel>,
+    pub clk_sel: Option<sinara_config::urukul::ClkSel>,
+    pub clk_div: Option<sinara_config::urukul::ClkDiv>,
     pub rf_sw: Option<u8>,
     pub refclk: Option<f64>,
     pub att: Option<u32>,
@@ -191,6 +191,37 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_urukul_typical() {
+        let data = r#"
+            {
+                "_qualclass": "artiq.coredevice.urukul.CPLD",
+                "arguments": {
+                    "spi_device": "spi_urukul0",
+                    "sync_device": "ttl_urukul0_sync",
+                    "io_update_device": "ttl_urukul0_io_update",
+                    "refclk": 125000000.0,
+                    "clk_sel": 2,
+                    "clk_div": 0
+                }
+            }
+        "#;
+
+        let dev: Device = serde_json::from_str(data).unwrap();
+
+        match dev {
+            Device::UrukulCpld { arguments } => {
+                assert_eq!(arguments.clk_sel, Some(sinara_config::urukul::ClkSel::Mmcx));
+                assert_eq!(
+                    arguments.clk_div,
+                    Some(sinara_config::urukul::ClkDiv::Default)
+                );
+                assert!(arguments.sync_sel.is_none());
+            }
+            _ => panic!("Must be Urukul CPLD"),
+        }
+    }
 
     #[test]
     fn test_parse_ad9910_typical() {
