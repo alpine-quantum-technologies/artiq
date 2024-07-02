@@ -31,7 +31,6 @@ pub struct ConfiguredBus {
 pub enum Error {
     InvalidTransferLength(i32),
     InvalidClockDivider(i32),
-    DeadlineMissed,
 }
 
 impl Bus {

@@ -1,5 +1,5 @@
+use super::{ClkDiv, ClkSel, SyncSel};
 use core::convert::{TryFrom, TryInto};
-use sinara_config::urukul::{ClkDiv, ClkSel, SyncSel};
 
 /// Urukul configuration register.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -13,6 +13,13 @@ pub struct Config {
     pub reset: bool,
     pub io_reset: bool,
     pub clk_div: ClkDiv,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum InvalidConfig {
+    ClkSel(i32),
+    SyncSel(i32),
+    ClkDiv(i32),
 }
 
 impl Config {
@@ -34,7 +41,7 @@ impl Config {
 }
 
 impl TryFrom<i32> for Config {
-    type Error = super::Error;
+    type Error = InvalidConfig;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         let clk_sel0 = (value >> Self::CLK_SEL0) & 1;
@@ -47,14 +54,12 @@ impl TryFrom<i32> for Config {
         Ok(Self {
             profile: ((value >> Self::PROFILE) & 7) as u8,
             io_update: ((value >> Self::IO_UPDATE) & 1) != 0,
-            clk_sel: ClkSel::try_from(clk_sel as u8)
-                .map_err(|_| Self::Error::InvalidClkSel(clk_sel))?,
+            clk_sel: ClkSel::try_from(clk_sel as u8).map_err(|_| Self::Error::ClkSel(clk_sel))?,
             sync_sel: SyncSel::try_from(sync_sel as u8)
-                .map_err(|_| Self::Error::InvalidSyncSel(sync_sel))?,
+                .map_err(|_| Self::Error::SyncSel(sync_sel))?,
             reset: ((value >> Self::RST) & 1) != 0,
             io_reset: ((value >> Self::IO_RST) & 1) != 0,
-            clk_div: ClkDiv::try_from(clk_div as u8)
-                .map_err(|_| Self::Error::InvalidClkDiv(clk_div))?,
+            clk_div: ClkDiv::try_from(clk_div as u8).map_err(|_| Self::Error::ClkDiv(clk_div))?,
         })
     }
 }

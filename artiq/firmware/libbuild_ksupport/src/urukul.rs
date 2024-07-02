@@ -127,7 +127,7 @@ impl<'a> Urukul<'a> {
 
         #[rustfmt::skip]
 	quote! {
-	    config: urukul::Config {
+	    config: sinara_config::urukul::Config {
 		profile: 7,
 		io_update: false,
 		reset: false,

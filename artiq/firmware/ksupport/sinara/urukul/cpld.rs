@@ -1,5 +1,6 @@
-use super::{Config, Error, Status};
+use super::Error;
 use crate::{rtio, spi2};
+use sinara_config::urukul::{Config, Status};
 
 type Result<T> = core::result::Result<T, Error>;
 

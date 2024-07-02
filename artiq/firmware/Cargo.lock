@@ -914,6 +914,7 @@ dependencies = [
 name = "sinara_config"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.5.0",
  "num_enum",
  "serde",
  "serde_repr",

@@ -1,6 +1,12 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde_repr::Deserialize_repr;
 
+mod config;
+mod status;
+
+pub use config::{Config, InvalidConfig};
+pub use status::{ChannelFlags, IfcMode, Status};
+
 /// Reference clock input selection.
 ///
 /// Only supports Urukul v1.3+.
