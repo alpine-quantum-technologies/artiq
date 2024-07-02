@@ -298,15 +298,15 @@
 
             echo 'Lint ddb_parser'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml  -- -Dwarnings
-
             echo 'Lint build_ksupport'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libbuild_ksupport/Cargo.toml -- -Dwarnings
-
             echo 'Lint sinara_config'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- -Dwarnings
 
             echo 'Test ddb_parser'
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
+            echo 'Test sinara_config'
+            cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml
             '';
 
           installPhase =
