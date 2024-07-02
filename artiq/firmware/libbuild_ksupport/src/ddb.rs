@@ -33,3 +33,24 @@ pub(crate) fn core(ddb: &DeviceDb) -> Option<&ddb_parser::core::Core> {
 
     None
 }
+
+/// First matching TtlClockGen (if any).
+///
+/// # Arguments
+/// - `key` - target device key.
+/// - `ddb` - device DB to search in.
+pub(crate) fn ttl_clock_gen<'a, 'b>(
+    key: &'a str,
+    ddb: &'b DeviceDb,
+) -> Option<&'b ddb_parser::ttl::TtlClockGen> {
+    for entry in ddb {
+        match entry {
+            (ddb_key, Device::TtlClockGen { arguments }) if key == ddb_key => {
+                return Some(arguments)
+            }
+            _ => continue,
+        }
+    }
+
+    None
+}

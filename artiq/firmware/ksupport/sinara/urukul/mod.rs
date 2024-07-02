@@ -1,3 +1,4 @@
+use super::ttl;
 use crate::spi2;
 use sinara_config::urukul::InvalidConfig;
 
@@ -22,4 +23,14 @@ impl From<InvalidConfig> for Error {
     fn from(other: InvalidConfig) -> Self {
         Self::Config(other)
     }
+}
+
+/// Synchronization generator, when using the EEM variant.
+#[derive(Debug)]
+pub struct SyncGen {
+    /// Clock generator.
+    pub device: ttl::TtlClockGen,
+
+    /// Synchronization clock divider.
+    pub div: u8,
 }

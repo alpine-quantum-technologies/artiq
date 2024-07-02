@@ -1,4 +1,4 @@
-use super::Error;
+use super::{Error, SyncGen};
 use crate::{rtio, spi2};
 use sinara_config::urukul::{Config, Status};
 
@@ -20,6 +20,7 @@ impl SpiConfig {
 pub struct Cpld {
     pub bus: spi2::Bus,
     pub config: Config,
+    pub sync: Option<SyncGen>,
 }
 
 impl Cpld {
@@ -42,7 +43,10 @@ impl Cpld {
             ..self.config
         })?;
 
-        // TODO: setup sync clock.
+        if let Some(sync) = &self.sync {
+            rtio::at_mu(rtio::now_mu() & !0xf);
+            sync.device.set_mu(((1 << 4) / sync.div).into());
+        }
 
         rtio::delay_mu(1_000_000); // DDS wake-up
         Ok(())
