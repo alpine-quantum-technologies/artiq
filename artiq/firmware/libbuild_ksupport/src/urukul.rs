@@ -65,7 +65,7 @@ impl<'a> Urukul<'a> {
     /// - `core` - the containing device DB's core device.
     fn from_ddb(
         key: &str,
-        dev: &ddb_parser::devices::UrukulCpld,
+        dev: &ddb_parser::urukul::Cpld,
         ddb: &DeviceDb,
         core: &'a ddb_parser::core::Core,
     ) -> Self {
@@ -86,8 +86,8 @@ impl<'a> Urukul<'a> {
 
         Self {
             spi_channel: spi_device.channel,
-            clk_sel: ClkSel(dev.clk_sel.unwrap_or_default()),
-            clk_div: ClkDiv(dev.clk_div.unwrap_or_default()),
+            clk_sel: ClkSel(dev.clk_sel),
+            clk_div: ClkDiv(dev.clk_div),
             sync_div,
             sync_sel: SyncSel(sync_sel),
             core,
