@@ -1,4 +1,4 @@
-use crate::i2c;
+use crate::{core::Core, i2c};
 use serde::Deserialize;
 use serde_with::{serde_as, TryFromInto};
 
@@ -34,24 +34,6 @@ pub enum Device {
 
     #[serde(untagged)]
     Unknown(Ignored),
-}
-
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-pub struct Core {
-    pub host: String,
-    pub ref_period: f32,
-    pub ref_multiplier: Option<i32>,
-    pub target: Option<Target>,
-}
-
-#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
-pub enum Target {
-    #[serde(rename = "rv32ima")]
-    Kasli1,
-    #[serde(rename = "rv32g")]
-    Kasli2,
-    #[serde(rename = "cortexa9")]
-    KasliSoc,
 }
 
 #[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
