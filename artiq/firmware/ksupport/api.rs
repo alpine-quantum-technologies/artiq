@@ -199,4 +199,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     // Urukul
     api!(urukul_init = ::sinara::urukul_init),
     api!(urukul_count = ::sinara::urukul_count),
+    api!(urukul_write_coarse_attenuation = ::sinara::urukul_write_coarse_attenuation),
+    api!(urukul_read_coarse_attenuation = ::sinara::urukul_read_coarse_attenuation),
 ];

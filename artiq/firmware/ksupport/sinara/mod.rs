@@ -41,3 +41,20 @@ pub extern "C" fn urukul_init(board: usize) -> bool {
 pub extern "C" fn urukul_count() -> usize {
     PERIPHERALS.urukul.len()
 }
+
+pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> bool {
+    PERIPHERALS.urukul[board]
+        .write_attenuation_register(att_mu)
+        .is_ok()
+}
+
+pub extern "C" fn urukul_read_coarse_attenuation(board: usize, att_mu: *mut u32) -> bool {
+    if let Ok(att) = PERIPHERALS.urukul[board].read_attenuation_register() {
+        unsafe {
+            *att_mu = att;
+        }
+        true
+    } else {
+        false
+    }
+}
