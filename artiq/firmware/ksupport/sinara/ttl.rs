@@ -1,8 +1,16 @@
 use crate::rtio;
 
 #[cfg_attr(not(any(has_sinara_ttl_out, has_sinara_led)), allow(dead_code))]
+#[derive(Debug)]
 pub struct TtlOut {
     pub channel: i32,
+}
+
+#[cfg_attr(not(has_sinara_ttl_clk_gen), allow(dead_code))]
+#[derive(Debug)]
+pub struct TtlClockGen {
+    pub channel: i32,
+    pub acc_width: i64,
 }
 
 #[cfg_attr(not(any(has_sinara_ttl_out, has_sinara_led)), allow(dead_code))]
@@ -20,5 +28,16 @@ impl TtlOut {
 
     fn set_o(&self, o: bool) {
         rtio::output(self.channel << 8, if o { 1 } else { 0 })
+    }
+}
+
+#[cfg_attr(not(has_sinara_ttl_clk_gen), allow(dead_code))]
+impl TtlClockGen {
+    pub fn set_mu(&self, ftw: i32) {
+        rtio::output(self.channel, ftw)
+    }
+
+    pub fn stop(&self) {
+        self.set_mu(0)
     }
 }

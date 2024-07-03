@@ -43,12 +43,11 @@ struct Urukul<'a> {
     /// Clock divider.
     clk_div: ClkDiv,
 
-    /// Synchronization clock source selection.
-    sync_sel: SyncSel,
-
     /// Synchronization clock divider.
-    #[allow(dead_code)]
     sync_div: u8,
+
+    /// Synchronization clock generator.
+    sync_device: Option<&'a ddb_parser::ttl::TtlClockGen>,
 
     /// Core device.
     core: &'a ddb_parser::core::Core,
@@ -65,20 +64,17 @@ impl<'a> Urukul<'a> {
     /// - `core` - the containing device DB's core device.
     fn from_ddb(
         key: &str,
-        dev: &ddb_parser::urukul::Cpld,
-        ddb: &DeviceDb,
+        dev: &'a ddb_parser::urukul::Cpld,
+        ddb: &'a DeviceDb,
         core: &'a ddb_parser::core::Core,
     ) -> Self {
-        let (sync_sel, sync_div) = if dev.sync_device.is_some() {
-            (
-                sinara_config::urukul::SyncSel::Eem,
-                dev.sync_div.unwrap_or(2),
-            )
+        let (sync_device, sync_div) = if let Some(sync_device_key) = &dev.sync_device {
+            let sync_device = ddb::ttl_clock_gen(sync_device_key, ddb)
+                .unwrap_or_else(|| panic!("Missing sync generator for Urukul {}", key));
+
+            (Some(sync_device), dev.sync_div.unwrap_or(2))
         } else {
-            (
-                sinara_config::urukul::SyncSel::Dds0,
-                dev.sync_div.unwrap_or(0),
-            )
+            (None, dev.sync_div.unwrap_or(0))
         };
 
         let spi_device = ddb::spi_device(&dev.spi_device, ddb)
@@ -89,7 +85,7 @@ impl<'a> Urukul<'a> {
             clk_sel: ClkSel(dev.clk_sel),
             clk_div: ClkDiv(dev.clk_div),
             sync_div,
-            sync_sel: SyncSel(sync_sel),
+            sync_device,
             core,
         }
     }
@@ -97,12 +93,14 @@ impl<'a> Urukul<'a> {
     fn tokens(&self) -> TokenStream {
         let bus_tokens = self.bus_tokens();
         let config_tokens = self.config_tokens();
+        let sync_tokens = self.sync_tokens();
 
         #[rustfmt::skip]
         quote! {
             urukul::Cpld {
 		#bus_tokens,
 		#config_tokens,
+		#sync_tokens,
             }
         }
     }
@@ -123,7 +121,11 @@ impl<'a> Urukul<'a> {
     fn config_tokens(&self) -> TokenStream {
         let clk_sel = &self.clk_sel;
         let clk_div = &self.clk_div;
-        let sync_sel = &self.sync_sel;
+        let sync_sel = if self.sync_device.is_some() {
+            SyncSel(sinara_config::urukul::SyncSel::Eem)
+        } else {
+            SyncSel(sinara_config::urukul::SyncSel::Dds0)
+        };
 
         #[rustfmt::skip]
 	quote! {
@@ -137,6 +139,36 @@ impl<'a> Urukul<'a> {
 		sync_sel: #sync_sel,
 	    }
 	}
+    }
+
+    fn sync_tokens(&self) -> TokenStream {
+        let def = if let Some(sync_device) = &self.sync_device {
+            println!("cargo:rustc-cfg=has_sinara_ttl_clk_gen");
+
+            let channel = sync_device.channel;
+            let acc_width = sync_device.acc_width as i64;
+            let sync_div = &self.sync_div;
+
+            #[rustfmt::skip]
+            quote! {
+		Some(urukul::SyncGen {
+                    device: ttl::TtlClockGen {
+			channel: #channel,
+			acc_width: #acc_width,
+                    },
+                    div: #sync_div,
+		})
+            }
+        } else {
+            #[rustfmt::skip]
+            quote! {
+		None
+            }
+        };
+
+        quote! {
+            sync: #def
+        }
     }
 }
 
