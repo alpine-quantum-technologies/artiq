@@ -1,30 +1,20 @@
-use super::{Error, SyncGen};
-use crate::{rtio, spi2};
+use super::{ad9910::Ad9910, Channel, Cs, Error, SpiConfig, SyncGen};
+use crate::{rtio, sinara::ttl, spi2};
 use sinara_config::urukul::{Config, Status};
 
 type Result<T> = core::result::Result<T, Error>;
-
-struct SpiConfig {}
-
-impl SpiConfig {
-    // SPI clock dividers for configuration register read/write.
-    const DIV_CFG_WR: i32 = 2;
-    const DIV_CFG_RD: i32 = 16;
-
-    // SPI clock dividers for coarse attenuation read/write.
-    const DIV_ATT_WR: i32 = 6;
-    const DIV_ATT_RD: i32 = 16;
-
-    // TODO: add clock dividers for other targets
-
-    const FLAGS: spi2::Flags = spi2::Flags::CsPolarity;
-}
 
 #[derive(Debug)]
 pub struct Cpld {
     pub bus: spi2::Bus,
     pub config: Config,
     pub sync: Option<SyncGen>,
+    pub channels: [ChannelDesc; 4],
+}
+
+#[derive(Debug)]
+pub struct ChannelDesc {
+    pub switch_device: ttl::TtlOut,
 }
 
 impl Cpld {
@@ -131,30 +121,14 @@ impl Cpld {
 
         Ok(data as u32)
     }
-}
 
-/// SPI target selection.
-#[derive(Debug, Clone, IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-enum Cs {
-    /// Configuration register.
-    Cfg = 1,
-
-    /// Coarse attenuators.
-    Att = 2,
-
-    /// Multiple DDS chip, as selected by `mask_nu` in the configuration register.
-    DdsMulti = 3,
-
-    /// DDS chip 0.
-    DdsCh0 = 4,
-
-    /// DDS chip 1.
-    DdsCh1 = 5,
-
-    /// DDS chip 2.
-    DdsCh2 = 6,
-
-    /// DDS chip 3.
-    DdsCh3 = 7,
+    /// Proxy to a AD9910 channel.
+    pub fn channel(&self, channel: Channel) -> Ad9910<'_> {
+        let index: usize = channel.into();
+        let data = &self.channels[index];
+        Ad9910 {
+            cpld: self,
+            switch_device: &data.switch_device,
+        }
+    }
 }

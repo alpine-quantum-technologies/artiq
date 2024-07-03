@@ -1,3 +1,5 @@
+use core::convert::TryInto;
+
 #[cfg(not(has_rtio))]
 compile_error!("Need RTIO to use Sinara drivers");
 
@@ -57,4 +59,18 @@ pub extern "C" fn urukul_read_coarse_attenuation(board: usize, att_mu: *mut u32)
     } else {
         false
     }
+}
+
+pub extern "C" fn urukul_channel_rf_on(channel: usize) {
+    let (board, channel) = (channel / 4, channel % 4);
+    PERIPHERALS.urukul[board]
+        .channel(channel.try_into().unwrap())
+        .switch_on()
+}
+
+pub extern "C" fn urukul_channel_rf_off(channel: usize) {
+    let (board, channel) = (channel / 4, channel % 4);
+    PERIPHERALS.urukul[board]
+        .channel(channel.try_into().unwrap())
+        .switch_off()
 }

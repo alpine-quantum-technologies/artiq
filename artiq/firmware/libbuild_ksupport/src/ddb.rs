@@ -1,4 +1,5 @@
 use ddb_parser::{Device, DeviceDb};
+use itertools::Itertools;
 
 /// First matching SPI master device (if any).
 ///
@@ -53,4 +54,31 @@ pub(crate) fn ttl_clock_gen<'a, 'b>(
     }
 
     None
+}
+
+/// First matching TtlOut (if any).
+pub(crate) fn ttl_out<'a>(key: &str, ddb: &'a DeviceDb) -> Option<&'a ddb_parser::ttl::TtlOut> {
+    for entry in ddb {
+        match entry {
+            (ddb_key, Device::TtlOut { arguments }) if key == ddb_key => return Some(arguments),
+            _ => continue,
+        }
+    }
+
+    None
+}
+
+/// All channels for a given Urukul board, identified by CPLD device name.
+///
+/// This only searches for AD9910 channels.
+pub(crate) fn urukul_channels<'a>(
+    cpld_key: &str,
+    ddb: &'a DeviceDb,
+) -> impl Iterator<Item = &'a ddb_parser::urukul::Ad9910> {
+    ddb.iter()
+        .filter_map(|entry| match entry.1 {
+            Device::Ad9910 { arguments } if arguments.cpld_device == cpld_key => Some(arguments),
+            _ => None,
+        })
+        .sorted_by_key(|entry| entry.chip_select)
 }

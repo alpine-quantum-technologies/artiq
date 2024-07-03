@@ -33,6 +33,7 @@ pub(crate) fn emit_code(ddb: &DeviceDb, core: &ddb_parser::core::Core) -> Device
     }
 }
 
+#[derive(Debug)]
 struct Urukul<'a> {
     /// RTIO channel that control the SPI master.
     spi_channel: i32,
@@ -51,6 +52,15 @@ struct Urukul<'a> {
 
     /// Core device.
     core: &'a ddb_parser::core::Core,
+
+    /// RF channels
+    channels: [Channel<'a>; 4],
+}
+
+#[derive(Debug)]
+struct Channel<'a> {
+    /// Switch TTL.
+    switch_device: &'a ddb_parser::ttl::TtlOut,
 }
 
 impl<'a> Urukul<'a> {
@@ -70,7 +80,7 @@ impl<'a> Urukul<'a> {
     ) -> Self {
         let (sync_device, sync_div) = if let Some(sync_device_key) = &dev.sync_device {
             let sync_device = ddb::ttl_clock_gen(sync_device_key, ddb)
-                .unwrap_or_else(|| panic!("Missing sync generator for Urukul {}", key));
+                .unwrap_or_else(|| panic!("Missing sync generator for {}", key));
 
             (Some(sync_device), dev.sync_div.unwrap_or(2))
         } else {
@@ -78,7 +88,21 @@ impl<'a> Urukul<'a> {
         };
 
         let spi_device = ddb::spi_device(&dev.spi_device, ddb)
-            .unwrap_or_else(|| panic!("Missing SPI device for Urukul {}", key));
+            .unwrap_or_else(|| panic!("Missing SPI device for {}", key));
+
+        let channels: [_; 4] = ddb::urukul_channels(key, ddb)
+            .filter_map(|ch| {
+                let switch_device = ch
+                    .sw_device
+                    .as_ref()
+                    .map(|sw_dev_key| ddb::ttl_out(sw_dev_key, ddb))
+                    .flatten();
+
+                switch_device.map(|dev| Channel { switch_device: dev })
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap_or_else(|_| panic!("Channel mismatch for {}", key));
 
         Self {
             spi_channel: spi_device.channel,
@@ -87,6 +111,7 @@ impl<'a> Urukul<'a> {
             sync_div,
             sync_device,
             core,
+            channels,
         }
     }
 
@@ -94,6 +119,7 @@ impl<'a> Urukul<'a> {
         let bus_tokens = self.bus_tokens();
         let config_tokens = self.config_tokens();
         let sync_tokens = self.sync_tokens();
+        let channels_tokens = self.channels_tokens();
 
         #[rustfmt::skip]
         quote! {
@@ -101,6 +127,7 @@ impl<'a> Urukul<'a> {
 		#bus_tokens,
 		#config_tokens,
 		#sync_tokens,
+		#channels_tokens,
             }
         }
     }
@@ -170,8 +197,25 @@ impl<'a> Urukul<'a> {
             sync: #def
         }
     }
+
+    fn channels_tokens(&self) -> TokenStream {
+        let channel_descs = self.channels.iter().map(|ch| {
+            let sw_channel = ch.switch_device.channel;
+            #[rustfmt::skip]
+            quote! {
+		urukul::ChannelDesc {
+                    switch_device: ttl::TtlOut { channel: #sw_channel },
+		}
+            }
+        });
+
+        quote! {
+            channels: [#(#channel_descs),*]
+        }
+    }
 }
 
+#[derive(Debug)]
 struct ClkSel(sinara_config::urukul::ClkSel);
 
 impl ToTokens for ClkSel {
@@ -181,6 +225,7 @@ impl ToTokens for ClkSel {
     }
 }
 
+#[derive(Debug)]
 struct ClkDiv(sinara_config::urukul::ClkDiv);
 
 impl ToTokens for ClkDiv {
@@ -190,6 +235,7 @@ impl ToTokens for ClkDiv {
     }
 }
 
+#[derive(Debug)]
 struct SyncSel(sinara_config::urukul::SyncSel);
 
 impl ToTokens for SyncSel {
