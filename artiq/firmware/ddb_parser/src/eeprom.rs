@@ -7,6 +7,20 @@ use std::fmt;
 pub struct Kasli {
     #[serde_as(as = "TryFromInto<&str>")]
     pub port: sinara_config::i2c::KasliPort,
+
+    #[serde(default = "default_busno")]
+    pub busno: u8,
+
+    #[serde(default = "default_address")]
+    pub address: u8,
+}
+
+fn default_busno() -> u8 {
+    0
+}
+
+fn default_address() -> u8 {
+    0xa0
 }
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
