@@ -295,6 +295,8 @@
             cargo fmt --manifest-path ${self}/artiq/firmware/libbuild_ksupport/Cargo.toml -- --check
             echo 'Check sinara_config format'
             cargo fmt --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- --check
+            echo 'Check ad9910-pac format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/ad9910-pac/Cargo.toml -- --check
 
             echo 'Lint ddb_parser'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml  -- -Dwarnings
@@ -302,11 +304,15 @@
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libbuild_ksupport/Cargo.toml -- -Dwarnings
             echo 'Lint sinara_config'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- -Dwarnings
+            echo 'Lint ad9910-pac'
+            cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ad9910-pac/Cargo.toml -- -Dwarnings
 
             echo 'Test ddb_parser'
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
             echo 'Test sinara_config'
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml
+            echo 'Test ad9910-pac'
+            cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ad9910-pac/Cargo.toml
             '';
 
           installPhase =
