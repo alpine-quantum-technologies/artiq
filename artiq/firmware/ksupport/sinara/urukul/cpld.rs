@@ -1,14 +1,13 @@
-use super::{ad9910::Ad9910, Channel, Cs, Error, SpiConfig, SyncGen};
+use super::{ad9910::Ad9910, Channel, Cs, Error, Result, SpiConfig, SyncGen};
 use crate::{rtio, sinara::ttl, spi2};
 use sinara_config::urukul::{Config, Status};
-
-type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Cpld {
     pub bus: spi2::Bus,
     pub config: Config,
     pub sync: Option<SyncGen>,
+    pub io_update: Option<ttl::TtlOut>,
     pub channels: [ChannelDesc; 4],
 }
 
@@ -43,6 +42,13 @@ impl Cpld {
         }
 
         rtio::delay_mu(1_000_000); // DDS wake-up
+
+        // Initialize channels.
+        self.channel(Channel::Zero).init(blind)?;
+        self.channel(Channel::One).init(blind)?;
+        self.channel(Channel::Two).init(blind)?;
+        self.channel(Channel::Three).init(blind)?;
+
         Ok(())
     }
 
@@ -122,11 +128,30 @@ impl Cpld {
         Ok(data as u32)
     }
 
+    /// Pulse the I/O update signal on all DDS channels.
+    pub fn pulse_io_update(&self, duration: i64) -> Result<()> {
+        if let Some(ttl) = &self.io_update {
+            ttl.pulse_mu(duration);
+            Ok(())
+        } else {
+            self.write_configuration_register(Config {
+                io_update: true,
+                ..self.config
+            })?;
+            rtio::delay_mu(duration);
+            self.write_configuration_register(Config {
+                io_update: false,
+                ..self.config
+            })
+        }
+    }
+
     /// Proxy to a AD9910 channel.
     pub fn channel(&self, channel: Channel) -> Ad9910<'_> {
         let index: usize = channel.into();
         let data = &self.channels[index];
         Ad9910 {
+            channel,
             cpld: self,
             switch_device: &data.switch_device,
         }
