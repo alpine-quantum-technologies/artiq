@@ -14,6 +14,10 @@ pub struct Cpld {
 #[derive(Debug)]
 pub struct ChannelDesc {
     pub switch_device: ttl::TtlOut,
+    pub pll_cp: ad9910_pac::cfr3::ICpA,
+    pub pll_vco: ad9910_pac::cfr3::VcoSelA,
+    pub pll_n: u8,
+    pub pll_en: bool,
 }
 
 impl Cpld {
@@ -149,11 +153,10 @@ impl Cpld {
     /// Proxy to a AD9910 channel.
     pub fn channel(&self, channel: Channel) -> Ad9910<'_> {
         let index: usize = channel.into();
-        let data = &self.channels[index];
         Ad9910 {
             channel,
             cpld: self,
-            switch_device: &data.switch_device,
+            config: &self.channels[index],
         }
     }
 }

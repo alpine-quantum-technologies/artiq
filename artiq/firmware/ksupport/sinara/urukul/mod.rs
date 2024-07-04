@@ -17,6 +17,7 @@ pub enum Error {
     Config(InvalidConfig),
     ProtoRevMismatch,
     Ad9910AuxDacMismatch,
+    PllNotLocked(Channel),
 }
 
 impl From<spi2::Error> for Error {
@@ -118,6 +119,17 @@ impl From<Channel> for Cs {
             Channel::One => Self::DdsCh1,
             Channel::Two => Self::DdsCh2,
             Channel::Three => Self::DdsCh3,
+        }
+    }
+}
+
+impl From<Channel> for sinara_config::urukul::ChannelFlags {
+    fn from(channel: Channel) -> Self {
+        match channel {
+            Channel::Zero => Self::Zero,
+            Channel::One => Self::One,
+            Channel::Two => Self::Two,
+            Channel::Three => Self::Three,
         }
     }
 }

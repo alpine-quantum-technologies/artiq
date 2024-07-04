@@ -3,6 +3,7 @@ use ddb_parser::{Device, DeviceDb};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use std::fmt::Debug;
 
 pub(crate) fn emit_code(ddb: &DeviceDb, core: &ddb_parser::core::Core) -> DeviceTypeCode {
     let urukuls: Vec<_> = ddb
@@ -64,6 +65,18 @@ struct Urukul<'a> {
 struct Channel<'a> {
     /// Switch TTL.
     switch_device: &'a ddb_parser::ttl::TtlOut,
+
+    /// Whether to enable the reference clock PLL.
+    pll_en: bool,
+
+    /// Reference clock PLL N divider.
+    pll_n: u8,
+
+    /// Reference clock PLL VCO selection.
+    pll_vco: ad9910_pac::cfr3::VcoSelA,
+
+    /// Reference clock PLL charge pump current.
+    pll_cp: ad9910_pac::cfr3::ICpA,
 }
 
 impl<'a> Urukul<'a> {
@@ -104,9 +117,15 @@ impl<'a> Urukul<'a> {
                     .sw_device
                     .as_ref()
                     .map(|sw_dev_key| ddb::ttl_out(sw_dev_key, ddb))
-                    .flatten();
+                    .flatten()?;
 
-                switch_device.map(|dev| Channel { switch_device: dev })
+                Some(Channel {
+                    switch_device,
+                    pll_en: ch.pll_en,
+                    pll_n: ch.pll_n as u8,
+                    pll_vco: ch.pll_vco,
+                    pll_cp: ch.pll_cp,
+                })
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -232,10 +251,19 @@ impl<'a> Urukul<'a> {
     fn channels_tokens(&self) -> TokenStream {
         let channel_descs = self.channels.iter().map(|ch| {
             let sw_channel = ch.switch_device.channel;
+            let pll_cp = debug_ident(ch.pll_cp);
+            let pll_vco = debug_ident(ch.pll_vco);
+            let pll_n = ch.pll_n;
+            let pll_en = ch.pll_en;
+
             #[rustfmt::skip]
             quote! {
 		urukul::ChannelDesc {
                     switch_device: ttl::TtlOut { channel: #sw_channel },
+		    pll_cp: ad9910_pac::cfr3::ICpA::#pll_cp,
+		    pll_vco: ad9910_pac::cfr3::VcoSelA::#pll_vco,
+		    pll_n: #pll_n,
+		    pll_en: #pll_en,
 		}
             }
         });
@@ -251,7 +279,7 @@ struct ClkSel(sinara_config::urukul::ClkSel);
 
 impl ToTokens for ClkSel {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let variant = format_ident!("{}", format!("{:?}", self.0));
+        let variant = debug_ident(self.0);
         tokens.append_all(quote! { sinara_config::urukul::ClkSel::#variant });
     }
 }
@@ -261,7 +289,7 @@ struct ClkDiv(sinara_config::urukul::ClkDiv);
 
 impl ToTokens for ClkDiv {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let variant = format_ident!("{}", format!("{:?}", self.0));
+        let variant = debug_ident(self.0);
         tokens.append_all(quote! { sinara_config::urukul::ClkDiv::#variant });
     }
 }
@@ -271,7 +299,11 @@ struct SyncSel(sinara_config::urukul::SyncSel);
 
 impl ToTokens for SyncSel {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let variant = format_ident!("{}", format!("{:?}", self.0));
+        let variant = debug_ident(self.0);
         tokens.append_all(quote! { sinara_config::urukul::SyncSel::#variant });
     }
+}
+
+fn debug_ident<T: Debug>(val: T) -> proc_macro2::Ident {
+    format_ident!("{}", format!("{:?}", val))
 }
