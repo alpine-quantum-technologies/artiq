@@ -59,6 +59,9 @@ struct Urukul<'a> {
 
     /// RF channels
     channels: [Channel<'a>; 4],
+
+    /// I²C multiplexers
+    i2c_switches: (&'a ddb_parser::i2c::Switch, &'a ddb_parser::i2c::Switch),
 }
 
 #[derive(Debug)]
@@ -77,6 +80,9 @@ struct Channel<'a> {
 
     /// Reference clock PLL charge pump current.
     pll_cp: ad9910_pac::cfr3::ICpA,
+
+    /// Calibrated synchronization data source.
+    sync_data_source: sinara_config::urukul::SyncDataSource,
 }
 
 impl<'a> Urukul<'a> {
@@ -119,17 +125,51 @@ impl<'a> Urukul<'a> {
                     .map(|sw_dev_key| ddb::ttl_out(sw_dev_key, ddb))
                     .flatten()?;
 
+                let sync_data_source = {
+                    use ddb_parser::eeprom::MaybeOnEeprom;
+
+                    match (&ch.sync_delay_seed, &ch.io_update_delay) {
+                        (
+                            MaybeOnEeprom::Value(sync_delay_seed),
+                            MaybeOnEeprom::Value(io_update_delay),
+                        ) => sinara_config::urukul::SyncDataSource::User {
+                            sync_delay_seed: *sync_delay_seed,
+                            io_update_delay: *io_update_delay,
+                        },
+			(
+			    MaybeOnEeprom::EepromAddress(sync_delay_seed_loc),
+			    MaybeOnEeprom::EepromAddress(io_update_delay_loc),
+			) => {
+			    if sync_delay_seed_loc != io_update_delay_loc {
+				panic!("When reading from EEPROM, sync_delay_seed must be the same as io_update_delay ({})", key);
+			    }
+
+			    let eeprom = ddb::eeprom(&sync_delay_seed_loc.eeprom_device, ddb)
+				.unwrap_or_else(|| panic!("Missing EEPROM device {} for {}", sync_delay_seed_loc.eeprom_device, key));
+
+			    sinara_config::urukul::SyncDataSource::Eeprom {
+				port: eeprom.port,
+				offset: sync_delay_seed_loc.offset,
+			    }
+			},
+                        _ => unimplemented!(),
+                    }
+                };
+
                 Some(Channel {
                     switch_device,
                     pll_en: ch.pll_en,
                     pll_n: ch.pll_n as u8,
                     pll_vco: ch.pll_vco,
                     pll_cp: ch.pll_cp,
+                    sync_data_source,
                 })
             })
             .collect::<Vec<_>>()
             .try_into()
             .unwrap_or_else(|_| panic!("Channel mismatch for {}", key));
+
+        let i2c_switches = ddb::i2c_switches(ddb).expect("Missing I²C switches.");
 
         Self {
             spi_channel: spi_device.channel,
@@ -140,11 +180,13 @@ impl<'a> Urukul<'a> {
             io_update_device,
             core,
             channels,
+            i2c_switches,
         }
     }
 
     fn tokens(&self) -> TokenStream {
         let bus_tokens = self.bus_tokens();
+        let i2c_bus_tokens = self.i2c_bus_tokens();
         let config_tokens = self.config_tokens();
         let sync_tokens = self.sync_tokens();
         let io_update_tokens = self.io_update_tokens();
@@ -154,6 +196,7 @@ impl<'a> Urukul<'a> {
         quote! {
             urukul::Cpld {
 		#bus_tokens,
+		#i2c_bus_tokens,
 		#config_tokens,
 		#sync_tokens,
 		#io_update_tokens,
@@ -171,6 +214,25 @@ impl<'a> Urukul<'a> {
 	    bus: spi2::Bus {
 		channel: #channel,
 		ref_period_mu: #ref_period_mu,
+	    }
+	}
+    }
+
+    fn i2c_bus_tokens(&self) -> TokenStream {
+        let switch0_address = self.i2c_switches.0.address as i32;
+        let switch1_address = self.i2c_switches.1.address as i32;
+
+        #[rustfmt::skip]
+	quote! {
+	    i2c_bus: i2c::KasliI2C {
+		switch0: i2c::Switch {
+		    busno: 0,
+		    address: #switch0_address,
+		},
+		switch1: i2c::Switch {
+		    busno: 0,
+		    address: #switch1_address,
+		},
 	    }
 	}
     }
@@ -256,6 +318,33 @@ impl<'a> Urukul<'a> {
             let pll_n = ch.pll_n;
             let pll_en = ch.pll_en;
 
+            // TODO: implement ToTokens for SyncDataSource in libconfig_sinara?
+            let sync_data_source = match ch.sync_data_source {
+                sinara_config::urukul::SyncDataSource::User {
+                    sync_delay_seed,
+                    io_update_delay,
+                } => {
+                    #[rustfmt::skip]
+		    quote! {
+			sinara_config::urukul::SyncDataSource::User {
+			    sync_delay_seed: #sync_delay_seed,
+			    io_update_delay: #io_update_delay,
+			}
+		    }
+                }
+                sinara_config::urukul::SyncDataSource::Eeprom { port, offset } => {
+                    let port_ident = debug_ident(port);
+
+                    #[rustfmt::skip]
+		    quote! {
+			sinara_config::urukul::SyncDataSource::Eeprom {
+			    port: sinara_config::i2c::KasliPort::#port_ident,
+			    offset: #offset,
+			}
+		    }
+                }
+            };
+
             #[rustfmt::skip]
             quote! {
 		urukul::ChannelDesc {
@@ -264,6 +353,7 @@ impl<'a> Urukul<'a> {
 		    pll_vco: ad9910_pac::cfr3::VcoSelA::#pll_vco,
 		    pll_n: #pll_n,
 		    pll_en: #pll_en,
+		    sync_data_source: #sync_data_source,
 		}
             }
         });

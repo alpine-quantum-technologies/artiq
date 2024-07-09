@@ -1,3 +1,5 @@
+use crate::i2c;
+
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde_repr::Deserialize_repr;
 
@@ -77,4 +79,16 @@ impl Default for SyncSel {
     fn default() -> Self {
         Self::Dds0
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum SyncDataSource {
+    Eeprom {
+        port: i2c::KasliPort,
+        offset: u32,
+    },
+    User {
+        sync_delay_seed: i32,
+        io_update_delay: i32,
+    },
 }

@@ -1,4 +1,4 @@
-use super::{cpld::ChannelDesc, Channel, Cpld, Cs, Error, Result, SpiConfig};
+use super::{cpld::ChannelDesc, Channel, Cpld, Cs, Error, Result, SpiConfig, SyncData};
 use crate::{rtio, spi2};
 
 /// Urukul AD9910 channel.
@@ -87,6 +87,12 @@ impl Ad9910<'_> {
         rtio::delay_mu(10_000); // slack
 
         Ok(())
+    }
+
+    pub fn read_sync_data(&self) -> Result<SyncData> {
+        let sync_data = SyncData::init(self.config.sync_data_source, &self.cpld.i2c_bus)?;
+        rtio::delay_mu(50_000_000);
+        Ok(sync_data)
     }
 
     /// Enable the RF output (close the switch).

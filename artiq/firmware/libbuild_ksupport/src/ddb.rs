@@ -82,3 +82,39 @@ pub(crate) fn urukul_channels<'a>(
         })
         .sorted_by_key(|entry| entry.chip_select)
 }
+
+/// First macthing I²C multiplexer, by key.
+pub(crate) fn i2c_switch<'a>(key: &str, ddb: &'a DeviceDb) -> Option<&'a ddb_parser::i2c::Switch> {
+    for entry in ddb {
+        match entry {
+            (ddb_key, Device::I2cSwitch { arguments }) if key == ddb_key => return Some(arguments),
+            _ => continue,
+        }
+    }
+
+    None
+}
+
+/// The Kasli I²C multiplexers.
+pub(crate) fn i2c_switches(
+    ddb: &DeviceDb,
+) -> Option<(&ddb_parser::i2c::Switch, &ddb_parser::i2c::Switch)> {
+    let switch0 = i2c_switch("i2c_switch0", ddb);
+    let switch1 = i2c_switch("i2c_switch1", ddb);
+
+    switch0.zip(switch1)
+}
+
+/// First matching Kasli EEPROM, if any.
+pub(crate) fn eeprom<'a>(key: &str, ddb: &'a DeviceDb) -> Option<&'a ddb_parser::eeprom::Kasli> {
+    for entry in ddb {
+        match entry {
+            (ddb_key, Device::KasliEeprom { arguments }) if key == ddb_key => {
+                return Some(arguments)
+            }
+            _ => continue,
+        }
+    }
+
+    None
+}

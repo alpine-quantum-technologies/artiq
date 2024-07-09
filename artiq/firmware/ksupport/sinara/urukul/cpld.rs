@@ -1,10 +1,11 @@
 use super::{ad9910::Ad9910, Channel, Cs, Error, Result, SpiConfig, SyncGen};
-use crate::{rtio, sinara::ttl, spi2};
-use sinara_config::urukul::{Config, Status};
+use crate::{nrt_bus::i2c, rtio, sinara::ttl, spi2};
+use sinara_config::urukul::{Config, Status, SyncDataSource};
 
 #[derive(Debug)]
 pub struct Cpld {
     pub bus: spi2::Bus,
+    pub i2c_bus: i2c::KasliI2C,
     pub config: Config,
     pub sync: Option<SyncGen>,
     pub io_update: Option<ttl::TtlOut>,
@@ -18,6 +19,7 @@ pub struct ChannelDesc {
     pub pll_vco: ad9910_pac::cfr3::VcoSelA,
     pub pll_n: u8,
     pub pll_en: bool,
+    pub sync_data_source: SyncDataSource,
 }
 
 impl Cpld {

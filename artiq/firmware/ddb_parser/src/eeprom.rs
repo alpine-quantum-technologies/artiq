@@ -3,7 +3,7 @@ use serde_with::{serde_as, TryFromInto};
 use std::fmt;
 
 #[serde_as]
-#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Copy, Clone, PartialEq)]
 pub struct Kasli {
     #[serde_as(as = "TryFromInto<&str>")]
     pub port: sinara_config::i2c::KasliPort,
@@ -13,7 +13,7 @@ pub struct Kasli {
 #[serde(untagged)]
 pub enum MaybeOnEeprom {
     EepromAddress(EepromAddress),
-    Value(u32),
+    Value(i32),
 }
 
 impl Default for MaybeOnEeprom {

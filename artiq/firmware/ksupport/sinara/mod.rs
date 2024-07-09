@@ -7,6 +7,8 @@ mod ttl;
 mod urukul;
 
 #[cfg(has_sinara_urukul)]
+use crate::nrt_bus::i2c;
+#[cfg(has_sinara_urukul)]
 use crate::spi2;
 
 include!(concat!(env!("OUT_DIR"), "/peripherals.rs"));
@@ -51,6 +53,22 @@ pub extern "C" fn urukul_channel_init(board: usize, channel: u8) -> bool {
         .is_ok()
 }
 
+pub extern "C" fn urukul_channel_read_sync_data(
+    board: usize,
+    channel: u8,
+    sync_data: *mut urukul::SyncData,
+) -> bool {
+    let board = &PERIPHERALS.urukul[board];
+    let channel = board.channel(channel.try_into().unwrap());
+
+    if let Ok(data) = channel.read_sync_data() {
+        unsafe { *sync_data = data };
+        true
+    } else {
+        false
+    }
+}
+
 pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> bool {
     PERIPHERALS.urukul[board]
         .write_attenuation_register(att_mu)
@@ -59,9 +77,7 @@ pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> 
 
 pub extern "C" fn urukul_read_coarse_attenuation(board: usize, att_mu: *mut u32) -> bool {
     if let Ok(att) = PERIPHERALS.urukul[board].read_attenuation_register() {
-        unsafe {
-            *att_mu = att;
-        }
+        unsafe { *att_mu = att };
         true
     } else {
         false

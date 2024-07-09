@@ -19,6 +19,7 @@ pub mod i2c {
     }
 
     /// High-level I²C driver errors.
+    #[allow(dead_code)]
     #[derive(Debug, Clone, Eq, PartialEq)]
     pub enum Error {
         DeviceSelectionFailed,
@@ -117,6 +118,7 @@ pub mod i2c {
         }
 
         /// Write four bytes to an EEPROM device.
+        #[allow(dead_code)]
         pub fn eeprom_write_i32(
             &self,
             port: KasliPort,
@@ -170,6 +172,7 @@ pub mod i2c {
     ///
     /// * `busno` - I²C bus number.
     /// * `busaddr` - target device address.
+    #[allow(dead_code)]
     fn poll(busno: i32, busaddr: i32) -> Result<(), Error> {
         start(busno);
         let ack = write(busno, busaddr);
@@ -191,6 +194,7 @@ pub mod i2c {
     /// * `addr` - data destination address on the target device.
     /// * `bytes` - data to write.
     /// * `ack_last` - expect I²C `ACK` on the last byte written.
+    #[allow(dead_code)]
     fn write_bytes(
         busno: i32,
         busaddr: i32,
