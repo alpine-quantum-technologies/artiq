@@ -113,7 +113,8 @@ pub mod i2c {
         pub fn eeprom_read_i32(&self, port: KasliPort, addr: i32) -> Result<i32, Error> {
             let _select = SelectDevice::new(port, &self.switch0, &self.switch1);
 
-            let bytes = read_bytes::<4>(0, Self::EEPROM_ADDR, addr)?;
+            let mut bytes = [0; 4];
+            read_bytes(0, Self::EEPROM_ADDR, addr, &mut bytes)?;
             Ok(i32::from_be_bytes(bytes))
         }
 
@@ -226,14 +227,17 @@ pub mod i2c {
         Ok(())
     }
 
-    /// Read N bytes from a I²C device.
+    /// Read bytes from a I²C device.
+    ///
+    /// Read exactly the number of bytes required to fill `dest`.
     ///
     /// # Arguments
     ///
     /// * `busno` - I²C bus number.
     /// * `busaddr` - target device address.
     /// * `addr` - data address on the target device.
-    fn read_bytes<const N: usize>(busno: i32, busaddr: i32, addr: i32) -> Result<[u8; N], Error> {
+    /// * `dest` - data destination.
+    fn read_bytes(busno: i32, busaddr: i32, addr: i32, dest: &mut [u8]) -> Result<(), Error> {
         start(busno);
         if !write(busno, busaddr) {
             stop(busno);
@@ -251,13 +255,13 @@ pub mod i2c {
             return Err(Error::ReadSelectionFailed);
         }
 
-        let mut bytes = [0; N];
-        for (i, data) in bytes.iter_mut().enumerate() {
-            *data = read(busno, i < N - 1) as u8;
+        let n = dest.len();
+        for (i, data) in dest.iter_mut().enumerate() {
+            *data = read(busno, i < n - 1) as u8;
         }
 
         stop(busno);
-        Ok(bytes)
+        Ok(())
     }
 }
 
