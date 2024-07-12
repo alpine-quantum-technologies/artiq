@@ -108,3 +108,18 @@ pub extern "C" fn urukul_channel_set_mu(
         .set_mu(ftw, pow, asf)
         .is_ok()
 }
+
+pub extern "C" fn urukul_channel_set_mu_coherent(
+    board: usize,
+    channel: u8,
+    ftw: u32,
+    pow: u16,
+    asf: u16,
+    ref_time_mu: i64,
+    io_update_delay_mu: i64,
+) -> bool {
+    PERIPHERALS.urukul[board]
+        .channel(channel.try_into().unwrap())
+        .set_mu_coherent(ftw, pow, asf, ref_time_mu, io_update_delay_mu)
+        .is_ok()
+}

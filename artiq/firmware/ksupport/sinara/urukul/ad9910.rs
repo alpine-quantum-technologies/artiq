@@ -107,12 +107,45 @@ impl Ad9910<'_> {
 
     /// Single-tone output update, on the default profile.
     pub fn set_mu(&self, ftw: u32, pow: u16, asf: u16) -> Result<u16> {
-        // TODO: support tracking-phase updates.
         ad9910_pac::regs(self)
             .single_tone_profile7() // TODO: obey Config::profile.
             .write(|w| unsafe { w.asf().bits(asf).pow().bits(pow).ftw().bits(ftw) })?;
         self.cpld.pulse_io_update(8)?;
 
+        Ok(pow)
+    }
+
+    pub fn set_mu_coherent(
+        &self,
+        ftw: u32,
+        mut pow: u16,
+        asf: u16,
+        ref_time_mu: i64,
+        io_update_delay_mu: i64,
+    ) -> Result<u16> {
+        rtio::at_mu(rtio::now_mu() & !7);
+        // Use write, not modify, to avoid reading back the register.
+        ad9910_pac::regs(self).cfr1().write(|w| {
+            w.sdio_input_only()
+                .set_bit()
+                .autoclear_phase_accumulator()
+                .set_bit()
+        })?;
+
+        let sysclk_per_mu = 1_000_000_000 * 8; // TODO: calculate elsewhere
+        let dt = rtio::now_mu() - ref_time_mu;
+        pow += ((dt * (ftw as i64) * sysclk_per_mu) >> 16) as u16;
+
+        ad9910_pac::regs(self)
+            .single_tone_profile7()
+            .write(|w| unsafe { w.asf().bits(asf).pow().bits(pow).ftw().bits(ftw) })?;
+
+        rtio::delay_mu(io_update_delay_mu);
+        self.cpld.pulse_io_update(8)?;
+
+        ad9910_pac::regs(self)
+            .cfr1()
+            .write(|w| w.sdio_input_only().set_bit())?;
         Ok(pow)
     }
 }
