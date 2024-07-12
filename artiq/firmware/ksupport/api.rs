@@ -1,3 +1,5 @@
+use board_misoc::csr;
+
 macro_rules! api {
     ($i:ident) => ({
         extern { static $i: u8; }
@@ -145,6 +147,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /* proxified syscalls */
     api!(core_log),
     /* RTIO */
+    api!(now = csr::rtio::NOW_HI_ADDR as *const _),
     api!(now_mu = ::rtio::now_mu),
     api!(at_mu = ::rtio::at_mu),
     api!(delay_mu = ::rtio::delay_mu),
@@ -183,6 +186,10 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(i2c_write = ::nrt_bus::i2c::write),
     api!(i2c_read = ::nrt_bus::i2c::read),
     api!(i2c_switch_select = ::nrt_bus::i2c::switch_select),
+    /* SPI */
+    api!(spi_set_config = ::nrt_bus::spi::set_config),
+    api!(spi_write = ::nrt_bus::spi::write),
+    api!(spi_read = ::nrt_bus::spi::read),
     /* Sinara */
     // TTLOut
     api!(ttl_out_count = ::sinara::ttl_out_count),

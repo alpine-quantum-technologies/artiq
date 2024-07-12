@@ -265,7 +265,6 @@ pub mod i2c {
     }
 }
 
-#[allow(dead_code)]
 pub mod spi {
     use kernel_proto::*;
     use recv;
