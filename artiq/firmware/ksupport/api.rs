@@ -183,10 +183,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(i2c_write = ::nrt_bus::i2c::write),
     api!(i2c_read = ::nrt_bus::i2c::read),
     api!(i2c_switch_select = ::nrt_bus::i2c::switch_select),
-    /* SPI */
-    api!(spi_set_config = ::nrt_bus::spi::set_config),
-    api!(spi_write = ::nrt_bus::spi::write),
-    api!(spi_read = ::nrt_bus::spi::read),
     /* Sinara */
     // TTLOut
     api!(ttl_out_count = ::sinara::ttl_out_count),
