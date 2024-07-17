@@ -62,15 +62,27 @@ pub extern "C" fn urukul_read_coarse_attenuation(board: usize, att_mu: *mut u32)
 }
 
 pub extern "C" fn urukul_channel_rf_on(channel: usize) {
-    let (board, channel) = (channel / 4, channel % 4);
+    let (board, channel) = decode_urukul_channel(channel);
     PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
         .switch_on()
 }
 
 pub extern "C" fn urukul_channel_rf_off(channel: usize) {
-    let (board, channel) = (channel / 4, channel % 4);
+    let (board, channel) = decode_urukul_channel(channel);
     PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
         .switch_off()
+}
+
+pub extern "C" fn urukul_channel_set_mu(channel: usize, ftw: u32, pow: u16, asf: u16) -> bool {
+    let (board, channel) = decode_urukul_channel(channel);
+    PERIPHERALS.urukul[board]
+        .channel(channel.try_into().unwrap())
+        .set_mu(ftw, pow, asf)
+        .is_ok()
+}
+
+fn decode_urukul_channel(channel: usize) -> (usize, usize) {
+    (channel / 4, channel % 4)
 }

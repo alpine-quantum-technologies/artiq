@@ -98,6 +98,17 @@ impl Ad9910<'_> {
     pub fn switch_off(&self) {
         self.config.switch_device.off()
     }
+
+    /// Single-tone output update, on the default profile.
+    pub fn set_mu(&self, ftw: u32, pow: u16, asf: u16) -> Result<u16> {
+        // TODO: support tracking-phase updates.
+        ad9910_pac::regs(self)
+            .single_tone_profile7() // TODO: obey Config::profile.
+            .write(|w| unsafe { w.asf().bits(asf).pow().bits(pow).ftw().bits(ftw) })?;
+        self.cpld.pulse_io_update(8)?;
+
+        Ok(pow)
+    }
 }
 
 impl ad9910_pac::Interface<u16> for Ad9910<'_> {
