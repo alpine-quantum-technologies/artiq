@@ -1,0 +1,16 @@
+[package]
+name = "ad9910-pac"
+version = "0.1.0"
+edition = "2021"
+authors = ["Alpine Quantum Technologies GmbH <info@aqt.eu>"]
+license = "MIT"
+
+[dependencies]
+num_enum = { version = "0.7", default-features = false }
+paste = "1"
+serde = { version = "1", default_features = false }
+serde_repr = "0.1"
+
+[dev-dependencies]
+thiserror = "1.0.58"
+num-traits = "0.2.18"

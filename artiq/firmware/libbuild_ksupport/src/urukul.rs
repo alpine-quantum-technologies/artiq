@@ -50,6 +50,9 @@ struct Urukul<'a> {
     /// Synchronization clock generator.
     sync_device: Option<&'a ddb_parser::ttl::TtlClockGen>,
 
+    /// I/O update device.
+    io_update_device: Option<&'a ddb_parser::ttl::TtlOut>,
+
     /// Core device.
     core: &'a ddb_parser::core::Core,
 
@@ -90,6 +93,11 @@ impl<'a> Urukul<'a> {
         let spi_device = ddb::spi_device(&dev.spi_device, ddb)
             .unwrap_or_else(|| panic!("Missing SPI device for {}", key));
 
+        let io_update_device = dev
+            .io_update_device
+            .as_ref()
+            .and_then(|key| ddb::ttl_out(key, ddb));
+
         let channels: [_; 4] = ddb::urukul_channels(key, ddb)
             .filter_map(|ch| {
                 let switch_device = ch
@@ -110,6 +118,7 @@ impl<'a> Urukul<'a> {
             clk_div: ClkDiv(dev.clk_div),
             sync_div,
             sync_device,
+            io_update_device,
             core,
             channels,
         }
@@ -119,6 +128,7 @@ impl<'a> Urukul<'a> {
         let bus_tokens = self.bus_tokens();
         let config_tokens = self.config_tokens();
         let sync_tokens = self.sync_tokens();
+        let io_update_tokens = self.io_update_tokens();
         let channels_tokens = self.channels_tokens();
 
         #[rustfmt::skip]
@@ -127,6 +137,7 @@ impl<'a> Urukul<'a> {
 		#bus_tokens,
 		#config_tokens,
 		#sync_tokens,
+		#io_update_tokens,
 		#channels_tokens,
             }
         }
@@ -195,6 +206,26 @@ impl<'a> Urukul<'a> {
 
         quote! {
             sync: #def
+        }
+    }
+
+    fn io_update_tokens(&self) -> TokenStream {
+        let def = if let Some(io_update_device) = self.io_update_device {
+            let channel = io_update_device.channel;
+
+            #[rustfmt::skip]
+	    quote! {
+		Some(ttl::TtlOut { channel: #channel })
+	    }
+        } else {
+            #[rustfmt::skip]
+            quote! {
+		None
+            }
+        };
+
+        quote! {
+            io_update: #def
         }
     }
 

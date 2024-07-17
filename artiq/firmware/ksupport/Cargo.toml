@@ -27,3 +27,4 @@ unwind = { path = "../libunwind" }
 num_enum = { version = "0.7.2", default-features = false }
 bitflags = "2.4"
 sinara_config = { path = "../libsinara_config" }
+ad9910-pac = { path = "../ad9910-pac" }

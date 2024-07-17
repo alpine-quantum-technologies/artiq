@@ -26,6 +26,12 @@ impl TtlOut {
         self.set_o(false)
     }
 
+    pub fn pulse_mu(&self, duration: i64) {
+        self.on();
+        rtio::delay_mu(duration);
+        self.off();
+    }
+
     fn set_o(&self, o: bool) {
         rtio::output(self.channel << 8, if o { 1 } else { 0 })
     }
