@@ -252,6 +252,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f8cb7306107e4b10e64994de6d3274bd08996a7c1322a27b86482392f96be0a"
 
 [[package]]
+name = "cstr_core"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd98742e4fdca832d40cab219dc2e3048de17d873248f83f17df47c1bea70956"
+dependencies = [
+ "cty",
+ "memchr",
+]
+
+[[package]]
+name = "cty"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
+
+[[package]]
 name = "darling"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -471,12 +487,14 @@ name = "ksupport"
 version = "0.0.0"
 dependencies = [
  "ad9910-pac",
+ "arrayvec",
  "bitflags 2.5.0",
  "board_artiq",
  "board_misoc",
  "build_ksupport",
  "build_misoc",
  "cslice",
+ "cstr_core",
  "dyld",
  "eh",
  "io",

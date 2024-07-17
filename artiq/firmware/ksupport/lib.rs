@@ -5,8 +5,10 @@ extern crate cslice;
 extern crate libc;
 extern crate unwind;
 
+extern crate arrayvec;
 extern crate board_artiq;
 extern crate board_misoc;
+extern crate cstr_core;
 extern crate dyld;
 extern crate eh;
 extern crate io;
@@ -112,6 +114,9 @@ macro_rules! raise {
         raise!($name, $message, 0, 0, 0)
     }};
 }
+
+#[macro_use]
+mod log;
 
 mod api;
 mod eh_artiq;

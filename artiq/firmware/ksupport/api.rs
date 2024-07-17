@@ -1,3 +1,5 @@
+use board_misoc::csr;
+
 macro_rules! api {
     ($i:ident) => ({
         extern { static $i: u8; }
@@ -145,9 +147,11 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /* proxified syscalls */
     api!(core_log),
     /* RTIO */
+    api!(now = csr::rtio::NOW_HI_ADDR as *const _),
     api!(now_mu = ::rtio::now_mu),
     api!(at_mu = ::rtio::at_mu),
     api!(delay_mu = ::rtio::delay_mu),
+    api!(break_realtime = ::rtio::break_realtime),
     /* RPC */
     api!(rpc_send = ::rpc_send),
     api!(rpc_send_async = ::rpc_send_async),
