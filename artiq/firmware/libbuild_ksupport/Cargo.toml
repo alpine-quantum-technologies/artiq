@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ad9910-pac = { path = "../ad9910-pac" }
 ddb_parser = { path = "../ddb_parser" }
 sinara_config = { path = "../libsinara_config" }
 itertools = "0.12"

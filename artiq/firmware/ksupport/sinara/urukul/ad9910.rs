@@ -1,5 +1,5 @@
-use super::{Channel, Cpld, Cs, Error, Result, SpiConfig};
-use crate::{rtio, sinara::ttl, spi2};
+use super::{cpld::ChannelDesc, Channel, Cpld, Cs, Error, Result, SpiConfig};
+use crate::{rtio, spi2};
 
 /// Urukul AD9910 channel.
 pub struct Ad9910<'a> {
@@ -9,8 +9,8 @@ pub struct Ad9910<'a> {
     /// Urukul board controller.
     pub cpld: &'a Cpld,
 
-    /// EEM switch line driver.
-    pub switch_device: &'a ttl::TtlOut,
+    /// Configuration data
+    pub config: &'a ChannelDesc,
 }
 
 impl Ad9910<'_> {
@@ -35,17 +35,68 @@ impl Ad9910<'_> {
             rtio::delay_mu(50_000); // slack
         }
 
+        ad9910_pac::regs(self).cfr2().write(|w| {
+            w.enable_amplitude_scale_from_single_tone_profiles()
+                .set_bit()
+                .read_effective_ftw()
+                .set_bit()
+                .sync_timing_validation_disable()
+                .set_bit()
+        })?;
+        self.cpld.pulse_io_update(1_000)?;
+
+        let pll_vco = self.config.pll_vco;
+        let pll_cp = self.config.pll_cp;
+        let pll_n = self.config.pll_n;
+        let pll_en = self.config.pll_en;
+
+        ad9910_pac::regs(self).cfr3().write(|w| {
+            w.refclk_input_divider_bypass()
+                .set_bit()
+                .vco_sel()
+                .variant(pll_vco)
+                .i_cp()
+                .variant(pll_cp)
+                .n()
+                .variant(pll_n)
+                .pll_enable()
+                .bit(pll_en)
+                .pfd_reset()
+                .set_bit()
+        })?;
+        self.cpld.pulse_io_update(1_000)?;
+
+        ad9910_pac::regs(self)
+            .cfr3()
+            .modify(|_, w| w.pfd_reset().clear_bit())?;
+        self.cpld.pulse_io_update(1_000)?;
+
+        // Wait for PLL lock, up to 100 ms.
+        for i in 0..100 {
+            let sta = self.cpld.read_status_register()?;
+            rtio::delay_mu(1_000_000);
+
+            if sta.pll_locked(self.channel.into()) {
+                break;
+            }
+
+            if i >= 99 {
+                return Err(Error::PllNotLocked(self.channel));
+            }
+        }
+        rtio::delay_mu(10_000); // slack
+
         Ok(())
     }
 
     /// Enable the RF output (close the switch).
     pub fn switch_on(&self) {
-        self.switch_device.on()
+        self.config.switch_device.on()
     }
 
     /// Disable the RF output (open the switch).
     pub fn switch_off(&self) {
-        self.switch_device.off()
+        self.config.switch_device.off()
     }
 }
 
@@ -78,7 +129,7 @@ impl ad9910_pac::Interface<u16> for Ad9910<'_> {
             .configure_mu(SpiConfig::FLAGS, 8, SpiConfig::DIV_DDS_WR, cs.into())?
             .write((addr | 0x80) << 24);
 
-        Ok(self
+        let val = self
             .cpld
             .bus
             .configure_mu(
@@ -88,7 +139,10 @@ impl ad9910_pac::Interface<u16> for Ad9910<'_> {
                 cs.into(),
             )?
             .write(0)
-            .read() as u16)
+            .read() as u16;
+
+        rtio::delay_mu(10_000); // slack
+        Ok(val)
     }
 }
 
@@ -124,7 +178,7 @@ impl ad9910_pac::Interface<u32> for Ad9910<'_> {
             .bus
             .configure_mu(SpiConfig::FLAGS, 8, SpiConfig::DIV_DDS_WR, cs.into())?
             .write((addr | 0x80) << 24);
-        Ok(self
+        let val = self
             .cpld
             .bus
             .configure_mu(
@@ -134,7 +188,10 @@ impl ad9910_pac::Interface<u32> for Ad9910<'_> {
                 cs.into(),
             )?
             .write(0)
-            .read() as u32)
+            .read() as u32;
+
+        rtio::delay_mu(10_000); // slack
+        Ok(val)
     }
 }
 
@@ -193,6 +250,8 @@ impl ad9910_pac::Interface<u64> for Ad9910<'_> {
 
         let hi = bus_hi.read() as u64;
         let lo = bus_lo.read() as u64;
+
+        rtio::delay_mu(10_000); // slack
 
         Ok((hi << 32) | lo)
     }

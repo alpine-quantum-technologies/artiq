@@ -1,3 +1,6 @@
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 #[doc = "Register `cfr3` reader"]
 pub struct R(crate::R<Cfr3Spec>);
 impl core::ops::Deref for R {
@@ -60,13 +63,23 @@ impl<'a> NW<'a> {
         self.w.bits = (self.w.bits & !(0x7f << 1)) | ((value as u32 & 0x7f) << 1);
         self.w
     }
+
+    #[inline(always)]
+    pub fn variant(self, value: u8) -> &'a mut W {
+        unsafe { self.bits(value & 0x7f) }
+    }
 }
+
 #[doc = "Field `pll_enable` reader - PLL enable"]
 pub struct PllEnableR(crate::FieldReader<bool>);
 impl PllEnableR {
     #[inline(always)]
     pub(crate) fn new(bits: bool) -> Self {
         Self(crate::FieldReader::new(bits))
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.bits()
     }
 }
 impl core::ops::Deref for PllEnableR {
@@ -209,12 +222,47 @@ impl<'a> RefclkInputDividerBypassW<'a> {
         self.w
     }
 }
+#[doc = "Charge pump current in the reference clock PLL"]
+#[derive(
+    Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr,
+)]
+#[repr(u8)]
+pub enum ICpA {
+    #[doc = "0: 212 µA."]
+    I212 = 0,
+    #[doc = "1: 237 µA."]
+    I237 = 1,
+    #[doc = "2: 262 µA."]
+    I262 = 2,
+    #[doc = "3: 287 µA."]
+    I287 = 3,
+    #[doc = "4: 312 µA."]
+    I312 = 4,
+    #[doc = "5: 337 µA."]
+    I337 = 5,
+    #[doc = "6: 363 µA."]
+    I363 = 6,
+    #[doc = "7: 387 µA."]
+    I387 = 7,
+}
+
+impl Default for ICpA {
+    fn default() -> Self {
+        Self::I387
+    }
+}
+
 #[doc = "Field `i_cp` reader - Charge pump current in the REFCLK PLL"]
 pub struct ICpR(crate::FieldReader<u8>);
 impl ICpR {
     #[inline(always)]
     pub(crate) fn new(bits: u8) -> Self {
         Self(crate::FieldReader::new(bits))
+    }
+    #[doc = "Get enumerated values variant"]
+    #[inline(always)]
+    pub fn variant(&self) -> Option<ICpA> {
+        self.bits.try_into().ok()
     }
 }
 impl core::ops::Deref for ICpR {
@@ -235,13 +283,54 @@ impl<'a> ICpW<'a> {
         self.w.bits = (self.w.bits & !(7 << 19)) | ((value as u32 & 7) << 19);
         self.w
     }
+
+    #[doc = "Writes `variant` to the field"]
+    #[inline(always)]
+    pub fn variant(self, variant: ICpA) -> &'a mut W {
+        unsafe { self.bits(variant.into()) }
+    }
 }
+
+#[doc = "Frequency band selection for the reference clock PLL VCO"]
+#[derive(
+    Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr,
+)]
+#[repr(u8)]
+pub enum VcoSelA {
+    #[doc = "0: 370 MHz - 510 MHz."]
+    Vco0 = 0,
+    #[doc = "1: 420 MHz - 590 MHz."]
+    Vco1 = 1,
+    #[doc = "2: 500 MHz - 700 MHz."]
+    Vco2 = 2,
+    #[doc = "3: 600 MHz - 880 MHz."]
+    Vco3 = 3,
+    #[doc = "4: 700 MHz - 950 MHz."]
+    Vco4 = 4,
+    #[doc = "5: 820 MHz - 1150 MHz."]
+    Vco5 = 5,
+    #[doc = "7: PLL bypassed."]
+    Bypass = 7,
+}
+
+impl Default for VcoSelA {
+    fn default() -> Self {
+        Self::Bypass
+    }
+}
+
 #[doc = "Field `vco_sel` reader - Frequency band selection for the REFCLK PLL VCO"]
 pub struct VcoSelR(crate::FieldReader<u8>);
 impl VcoSelR {
     #[inline(always)]
     pub(crate) fn new(bits: u8) -> Self {
         Self(crate::FieldReader::new(bits))
+    }
+
+    #[doc = "Get enumerated values variant"]
+    #[inline(always)]
+    pub fn variant(&self) -> Option<VcoSelA> {
+        self.bits.try_into().ok()
     }
 }
 impl core::ops::Deref for VcoSelR {
@@ -262,13 +351,38 @@ impl<'a> VcoSelW<'a> {
         self.w.bits = (self.w.bits & !(7 << 24)) | ((value as u32 & 7) << 24);
         self.w
     }
+
+    #[doc = "Writes `variant` to the field"]
+    #[inline(always)]
+    pub fn variant(self, variant: VcoSelA) -> &'a mut W {
+        unsafe { self.bits(variant.into()) }
+    }
 }
+
+#[doc = "REFCLK_OUT pin control"]
+#[derive(
+    Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr,
+)]
+#[repr(u8)]
+pub enum Drv0A {
+    Disabled = 0,
+    LowOutputCurrent = 1,
+    MediumOutputCurrent = 2,
+    HighOutputCurrent = 3,
+}
+
 #[doc = "Field `drv0` reader - REFCLK_OUT pin control"]
 pub struct Drv0R(crate::FieldReader<u8>);
 impl Drv0R {
     #[inline(always)]
     pub(crate) fn new(bits: u8) -> Self {
         Self(crate::FieldReader::new(bits))
+    }
+
+    #[doc = "Get enumerated values variant"]
+    #[inline(always)]
+    pub fn variant(&self) -> Option<Drv0A> {
+        self.bits.try_into().ok()
     }
 }
 impl core::ops::Deref for Drv0R {
@@ -288,6 +402,32 @@ impl<'a> Drv0W<'a> {
     pub unsafe fn bits(self, value: u8) -> &'a mut W {
         self.w.bits = (self.w.bits & !(3 << 28)) | ((value as u32 & 3) << 28);
         self.w
+    }
+
+    #[doc = "Writes `variant` to the field"]
+    #[inline(always)]
+    pub fn variant(self, variant: Drv0A) -> &'a mut W {
+        unsafe { self.bits(variant.into()) }
+    }
+
+    #[inline(always)]
+    pub fn disabled(self) -> &'a mut W {
+        self.variant(Drv0A::Disabled)
+    }
+
+    #[inline(always)]
+    pub fn low_output_current(self) -> &'a mut W {
+        self.variant(Drv0A::LowOutputCurrent)
+    }
+
+    #[inline(always)]
+    pub fn medium_output_current(self) -> &'a mut W {
+        self.variant(Drv0A::MediumOutputCurrent)
+    }
+
+    #[inline(always)]
+    pub fn high_output_current(self) -> &'a mut W {
+        self.variant(Drv0A::HighOutputCurrent)
     }
 }
 impl R {

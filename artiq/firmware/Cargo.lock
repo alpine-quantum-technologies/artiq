@@ -172,6 +172,7 @@ checksum = "b4ae4235e6dac0694637c763029ecea1a2ec9e4e06ec2729bd21ba4d9c863eb7"
 name = "build_ksupport"
 version = "0.1.0"
 dependencies = [
+ "ad9910-pac",
  "ddb_parser",
  "itertools",
  "lazy_static",
@@ -289,6 +290,7 @@ dependencies = [
 name = "ddb_parser"
 version = "0.1.0"
 dependencies = [
+ "ad9910-pac",
  "indoc",
  "num_enum",
  "pyo3",

@@ -6,6 +6,7 @@ pub mod generic;
 pub mod regs;
 
 use generic::*;
+pub use regs::*;
 
 macro_rules! decl_reg {
     ($reg:ident) => {

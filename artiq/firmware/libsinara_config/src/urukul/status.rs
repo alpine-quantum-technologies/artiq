@@ -35,10 +35,10 @@ bitflags! {
     #[repr(transparent)]
     #[derive(Debug, Clone, Eq, PartialEq)]
     pub struct ChannelFlags: u8 {
-    const Zero = 0;
-    const One = 1;
-    const Two = 2;
-    const Three = 3;
+    const Zero = 1;
+    const One = 2;
+    const Two = 4;
+    const Three = 8;
     }
 }
 
@@ -57,6 +57,11 @@ impl Status {
     /// True if all PLLs are locked.
     pub fn all_plls_locked(&self) -> bool {
         self.pll_lock.is_all()
+    }
+
+    /// True if the PLLs of the given channels are locked.
+    pub fn pll_locked(&self, channels: ChannelFlags) -> bool {
+        self.pll_lock.contains(channels)
     }
 
     /// True if any channel has the sampling error flag set.
@@ -113,6 +118,29 @@ mod tests {
     fn with_sampling_error() {
         let status: Status = 0x80f20.into();
         assert!(status.any_sampling_error());
-        assert!(status.smp_err.intersects(ChannelFlags::Two));
+        assert!(status.smp_err.contains(ChannelFlags::One));
+    }
+
+    #[test]
+    fn lock_status() {
+        // All channels locked.
+        let status: Status = 0x80f00.into();
+        assert!(status.all_plls_locked());
+
+        // All channels unlocked.
+        let status: Status = 0x80000.into();
+        assert!(!status.all_plls_locked());
+        assert!(!status.pll_locked(ChannelFlags::Zero));
+        assert!(!status.pll_locked(ChannelFlags::One | ChannelFlags::Two));
+
+        // Channels 0 and 2 locked, 1 and 3 unlocked.
+        let status: Status = 0x80500.into();
+        assert!(!status.all_plls_locked());
+        assert!(status.pll_locked(ChannelFlags::Zero | ChannelFlags::Two));
+        assert!(!status.pll_locked(ChannelFlags::One | ChannelFlags::Three));
+        assert!(status.pll_locked(ChannelFlags::Zero));
+        assert!(status.pll_locked(ChannelFlags::Two));
+        assert!(!status.pll_locked(ChannelFlags::One));
+        assert!(!status.pll_locked(ChannelFlags::Three));
     }
 }

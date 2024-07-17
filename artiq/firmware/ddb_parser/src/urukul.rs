@@ -33,8 +33,10 @@ pub struct Ad9910 {
     pub sw_device: Option<String>,
     #[serde(default = "default_pll_n")]
     pub pll_n: i32,
-    pub pll_cp: Option<i32>,  // TODO: use ad9910-pac type
-    pub pll_vco: Option<i32>, // TODO: use ad9910-pac type
+    #[serde(default)]
+    pub pll_cp: ad9910_pac::cfr3::ICpA,
+    #[serde(default = "default_pll_vco")]
+    pub pll_vco: ad9910_pac::cfr3::VcoSelA,
     #[serde(default)]
     pub sync_delay_seed: MaybeOnEeprom,
     #[serde(default)]
@@ -46,6 +48,10 @@ pub struct Ad9910 {
 
 fn default_pll_n() -> i32 {
     40
+}
+
+fn default_pll_vco() -> ad9910_pac::cfr3::VcoSelA {
+    ad9910_pac::cfr3::VcoSelA::Vco5
 }
 
 fn default_pll_en() -> bool {
