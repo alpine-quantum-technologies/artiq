@@ -499,6 +499,7 @@ dependencies = [
  "eh",
  "io",
  "libc 0.1.0",
+ "log",
  "num_enum",
  "proto_artiq",
  "riscv",

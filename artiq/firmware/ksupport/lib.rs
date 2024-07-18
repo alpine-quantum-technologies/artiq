@@ -12,6 +12,7 @@ extern crate cstr_core;
 extern crate dyld;
 extern crate eh;
 extern crate io;
+extern crate log;
 extern crate proto_artiq;
 extern crate riscv;
 extern crate sinara_config;
@@ -53,7 +54,10 @@ macro_rules! recv {
             if let $p = request {
                 $e
             } else {
-                send(&Log(format_args!("unexpected reply: {:?}\n", request)));
+                send(&Log {
+                    level: log::Level::Warn,
+                    args: format_args!("unexpected reply: {:?}\n", request),
+                });
                 loop {}
             }
         })
@@ -64,26 +68,38 @@ macro_rules! recv {
 #[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
-        send(&Log(format_args!(
-            "panic at {}:{}:{}",
-            location.file(),
-            location.line(),
-            location.column()
-        )));
+        send(&Log {
+            level: log::Level::Error,
+            args: format_args!(
+                "panic at {}:{}:{}",
+                location.file(),
+                location.line(),
+                location.column()
+            ),
+        });
     } else {
-        send(&Log(format_args!("panic at unknown location")));
+        send(&Log {
+            level: log::Level::Error,
+            args: format_args!("panic at unknown location"),
+        });
     }
     if let Some(message) = info.message() {
-        send(&Log(format_args!(": {}\n", message)));
+        send(&Log {
+            level: log::Level::Error,
+            args: format_args!(": {}\n", message),
+        });
     } else {
-        send(&Log(format_args!("\n")));
+        send(&Log {
+            level: log::Level::Error,
+            args: format_args!("\n"),
+        });
     }
     send(&RunAborted);
     loop {}
 }
 
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::send(&$crate::kernel_proto::Log(format_args!($($arg)*))));
+    ($($arg:tt)*) => ($crate::send(&$crate::kernel_proto::Log{level: log::Level::Info, args: format_args!($($arg)*)}));
 }
 
 macro_rules! println {
@@ -116,7 +132,7 @@ macro_rules! raise {
 }
 
 #[macro_use]
-mod log;
+mod logger;
 
 mod api;
 mod eh_artiq;
@@ -129,13 +145,22 @@ static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
 pub extern "C" fn send_to_core_log(text: CSlice<u8>) {
+    use log::Level;
+
     match str::from_utf8(text.as_ref()) {
-        Ok(s) => send(&LogSlice(s)),
+        Ok(message) => send(&LogSlice {
+            level: Level::Info,
+            message,
+        }),
         Err(e) => {
-            send(&LogSlice(
-                str::from_utf8(&text.as_ref()[..e.valid_up_to()]).unwrap(),
-            ));
-            send(&LogSlice("(invalid utf-8)\n"));
+            send(&LogSlice {
+                level: Level::Info,
+                message: str::from_utf8(&text.as_ref()[..e.valid_up_to()]).unwrap(),
+            });
+            send(&LogSlice {
+                level: Level::Info,
+                message: "(invalid utf-8)\n",
+            });
         }
     }
 }

@@ -1,9 +1,9 @@
-use core::str;
+use self::tag::{split_tag, Tag, TagIterator};
+use byteorder::{ByteOrder, NativeEndian};
 use core::slice;
-use cslice::{CSlice, CMutSlice};
-use byteorder::{NativeEndian, ByteOrder};
-use io::{ProtoRead, Read, Write, ProtoWrite, Error};
-use self::tag::{Tag, TagIterator, split_tag};
+use core::str;
+use cslice::{CMutSlice, CSlice};
+use io::{Error, ProtoRead, ProtoWrite, Read, Write};
 
 #[inline]
 fn round_up(val: usize, power_of_two: usize) -> usize {
@@ -53,19 +53,19 @@ where
         Tag::Bool => {
             let dest = slice::from_raw_parts_mut(storage as *mut u8, length);
             reader.read_exact(dest)?;
-        },
+        }
         Tag::Int32 => {
             let dest = slice::from_raw_parts_mut(storage as *mut u8, length * 4);
             reader.read_exact(dest)?;
             let dest = slice::from_raw_parts_mut(storage as *mut i32, length);
             NativeEndian::from_slice_i32(dest);
-        },
+        }
         Tag::Int64 | Tag::Float64 => {
             let dest = slice::from_raw_parts_mut(storage as *mut u8, length * 8);
             reader.read_exact(dest)?;
             let dest = slice::from_raw_parts_mut(storage as *mut i64, length);
             NativeEndian::from_slice_i64(dest);
-        },
+        }
         _ => {
             let mut data = storage;
             for _ in 0..length {
@@ -81,34 +81,38 @@ where
 /// past the just-received data). For nested allocations (lists/arrays), `alloc` is
 /// invoked any number of times with the size of the required allocation as a parameter
 /// (which is assumed to be correctly aligned for all payload types).
-unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
-                           alloc: &dyn Fn(usize) -> Result<*mut (), E>)
-                          -> Result<(), E>
-    where R: Read + ?Sized,
-          E: From<Error<R::ReadError>>
+unsafe fn recv_value<R, E>(
+    reader: &mut R,
+    tag: Tag,
+    data: &mut *mut (),
+    alloc: &dyn Fn(usize) -> Result<*mut (), E>,
+) -> Result<(), E>
+where
+    R: Read + ?Sized,
+    E: From<Error<R::ReadError>>,
 {
     macro_rules! consume_value {
-        ($ty:ty, |$ptr:ident| $map:expr) => ({
+        ($ty:ty, |$ptr:ident| $map:expr) => {{
             let $ptr = align_ptr_mut::<$ty>(*data) as *mut $ty;
             *data = $ptr.offset(1) as *mut ();
             $map
-        })
+        }};
     }
 
     match tag {
         Tag::None => Ok(()),
-        Tag::Bool =>
-            consume_value!(u8, |ptr| {
-                *ptr = reader.read_u8()?; Ok(())
-            }),
-        Tag::Int32 =>
-            consume_value!(u32, |ptr| {
-                *ptr = reader.read_u32()?; Ok(())
-            }),
-        Tag::Int64 | Tag::Float64 =>
-            consume_value!(u64, |ptr| {
-                *ptr = reader.read_u64()?; Ok(())
-            }),
+        Tag::Bool => consume_value!(u8, |ptr| {
+            *ptr = reader.read_u8()?;
+            Ok(())
+        }),
+        Tag::Int32 => consume_value!(u32, |ptr| {
+            *ptr = reader.read_u32()?;
+            Ok(())
+        }),
+        Tag::Int64 | Tag::Float64 => consume_value!(u64, |ptr| {
+            *ptr = reader.read_u64()?;
+            Ok(())
+        }),
         Tag::String | Tag::Bytes | Tag::ByteArray => {
             consume_value!(CMutSlice<u8>, |ptr| {
                 let length = reader.read_u32()? as usize;
@@ -136,7 +140,10 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *mut (), length: usize }
+            struct List {
+                elements: *mut (),
+                length: usize,
+            }
             consume_value!(*mut List, |ptr_to_list| {
                 let tag = it.clone().next().expect("truncated tag");
                 let length = reader.read_u32()? as usize;
@@ -168,7 +175,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                 for _ in 0..num_dims {
                     let len = reader.read_u32()? as usize;
                     total_len *= len;
-                    consume_value!(usize, |ptr| *ptr = len )
+                    consume_value!(usize, |ptr| *ptr = len)
                 }
 
                 // Allocate backing storage for elements; deserialize them.
@@ -186,15 +193,19 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             Ok(())
         }
         Tag::Keyword(_) => unreachable!(),
-        Tag::Object => unreachable!()
+        Tag::Object => unreachable!(),
     }
 }
 
-pub fn recv_return<'a, R, E>(reader: &mut R, tag_bytes: &'a [u8], data: *mut (),
-                         alloc: &dyn Fn(usize) -> Result<*mut (), E>)
-                        -> Result<&'a [u8], E>
-    where R: Read + ?Sized,
-          E: From<Error<R::ReadError>>
+pub fn recv_return<'a, R, E>(
+    reader: &mut R,
+    tag_bytes: &'a [u8],
+    data: *mut (),
+    alloc: &dyn Fn(usize) -> Result<*mut (), E>,
+) -> Result<&'a [u8], E>
+where
+    R: Read + ?Sized,
+    E: From<Error<R::ReadError>>,
 {
     let mut it = TagIterator::new(tag_bytes);
     #[cfg(feature = "log")]
@@ -207,9 +218,15 @@ pub fn recv_return<'a, R, E>(reader: &mut R, tag_bytes: &'a [u8], data: *mut (),
     Ok(it.data)
 }
 
-unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *const (), write_tags: bool)
-                          -> Result<(), Error<W::WriteError>>
-    where W: Write + ?Sized
+unsafe fn send_elements<W>(
+    writer: &mut W,
+    elt_tag: Tag,
+    length: usize,
+    data: *const (),
+    write_tags: bool,
+) -> Result<(), Error<W::WriteError>>
+where
+    W: Write + ?Sized,
 {
     if write_tags {
         writer.write_u8(elt_tag.as_u8())?;
@@ -220,15 +237,15 @@ unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *c
         Tag::Bool => {
             let slice = slice::from_raw_parts(data as *const u8, length);
             writer.write_all(slice)?;
-        },
+        }
         Tag::Int32 => {
             let slice = slice::from_raw_parts(data as *const u8, length * 4);
             writer.write_all(slice)?;
-        },
+        }
         Tag::Int64 | Tag::Float64 => {
             let slice = slice::from_raw_parts(data as *const u8, length * 8);
             writer.write_all(slice)?;
-        },
+        }
         _ => {
             let mut data = data;
             for _ in 0..length {
@@ -239,37 +256,35 @@ unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *c
     Ok(())
 }
 
-unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const (), write_tags: bool)
-                       -> Result<(), Error<W::WriteError>>
-    where W: Write + ?Sized
+unsafe fn send_value<W>(
+    writer: &mut W,
+    tag: Tag,
+    data: &mut *const (),
+    write_tags: bool,
+) -> Result<(), Error<W::WriteError>>
+where
+    W: Write + ?Sized,
 {
     macro_rules! consume_value {
-        ($ty:ty, |$ptr:ident| $map:expr) => ({
+        ($ty:ty, |$ptr:ident| $map:expr) => {{
             let $ptr = align_ptr::<$ty>(*data);
             *data = $ptr.offset(1) as *const ();
             $map
-        })
+        }};
     }
     if write_tags {
         writer.write_u8(tag.as_u8())?;
     }
     match tag {
         Tag::None => Ok(()),
-        Tag::Bool =>
-            consume_value!(u8, |ptr|
-                writer.write_u8(*ptr)),
-        Tag::Int32 =>
-            consume_value!(u32, |ptr|
-                writer.write_u32(*ptr)),
-        Tag::Int64 | Tag::Float64 =>
-            consume_value!(u64, |ptr|
-                writer.write_u64(*ptr)),
-        Tag::String =>
-            consume_value!(CSlice<u8>, |ptr|
-                writer.write_string(str::from_utf8((*ptr).as_ref()).unwrap())),
-        Tag::Bytes | Tag::ByteArray =>
-            consume_value!(CSlice<u8>, |ptr|
-                writer.write_bytes((*ptr).as_ref())),
+        Tag::Bool => consume_value!(u8, |ptr| writer.write_u8(*ptr)),
+        Tag::Int32 => consume_value!(u32, |ptr| writer.write_u32(*ptr)),
+        Tag::Int64 | Tag::Float64 => consume_value!(u64, |ptr| writer.write_u64(*ptr)),
+        Tag::String => consume_value!(CSlice<u8>, |ptr| writer
+            .write_string(str::from_utf8((*ptr).as_ref()).unwrap())),
+        Tag::Bytes | Tag::ByteArray => {
+            consume_value!(CSlice<u8>, |ptr| writer.write_bytes((*ptr).as_ref()))
+        }
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
             if write_tags {
@@ -286,7 +301,10 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const (), write_ta
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *const (), length: u32 }
+            struct List {
+                elements: *const (),
+                length: u32,
+            }
             consume_value!(&List, |ptr| {
                 let length = (**ptr).length as usize;
                 writer.write_u32((**ptr).length)?;
@@ -298,7 +316,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const (), write_ta
             if write_tags {
                 writer.write_u8(num_dims)?;
             }
-            consume_value!(*const(), |buffer| {
+            consume_value!(*const (), |buffer| {
                 let elt_tag = it.clone().next().expect("truncated tag");
 
                 let mut total_len = 1;
@@ -321,7 +339,9 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const (), write_ta
         }
         Tag::Keyword(it) => {
             #[repr(C)]
-            struct Keyword<'a> { name: CSlice<'a, u8> }
+            struct Keyword<'a> {
+                name: CSlice<'a, u8>,
+            }
             consume_value!(Keyword, |ptr| {
                 writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
@@ -333,16 +353,23 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const (), write_ta
         }
         Tag::Object => {
             #[repr(C)]
-            struct Object { id: u32 }
-            consume_value!(*const Object, |ptr|
-                writer.write_u32((**ptr).id))
+            struct Object {
+                id: u32,
+            }
+            consume_value!(*const Object, |ptr| writer.write_u32((**ptr).id))
         }
     }
 }
 
-pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const *const (), write_tags: bool)
-                   -> Result<(), Error<W::WriteError>>
-    where W: Write + ?Sized
+pub fn send_args<W>(
+    writer: &mut W,
+    service: u32,
+    tag_bytes: &[u8],
+    data: *const *const (),
+    write_tags: bool,
+) -> Result<(), Error<W::WriteError>>
+where
+    W: Write + ?Sized,
 {
     let (arg_tags_bytes, return_tag_bytes) = split_tag(tag_bytes);
 
@@ -359,7 +386,7 @@ pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const
             let mut data = unsafe { *data.offset(index) };
             unsafe { send_value(writer, arg_tag, &mut data, write_tags)? };
         } else {
-            break
+            break;
         }
     }
     writer.write_u8(0)?;
@@ -369,14 +396,14 @@ pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const
 }
 
 mod tag {
-    use core::fmt;
     use super::round_up;
+    use core::fmt;
 
     pub fn split_tag(tag_bytes: &[u8]) -> (&[u8], &[u8]) {
-        let tag_separator =
-            tag_bytes.iter()
-                     .position(|&b| b == b':')
-                     .expect("tag without a return separator");
+        let tag_separator = tag_bytes
+            .iter()
+            .position(|&b| b == b':')
+            .expect("tag without a return separator");
         let (arg_tags_bytes, rest) = tag_bytes.split_at(tag_separator);
         let return_tag_bytes = &rest[1..];
         (arg_tags_bytes, return_tag_bytes)
@@ -397,7 +424,7 @@ mod tag {
         Array(TagIterator<'a>, u8),
         Range(TagIterator<'a>),
         Keyword(TagIterator<'a>),
-        Object
+        Object,
     }
 
     impl<'a> Tag<'a> {
@@ -432,15 +459,18 @@ mod tag {
                 Tag::Tuple(it, arity) => {
                     let it = it.clone();
                     it.take(arity.into()).map(|t| t.alignment()).max().unwrap()
-                },
+                }
                 Tag::Range(it) => {
                     let it = it.clone();
                     it.take(3).map(|t| t.alignment()).max().unwrap()
                 }
                 // the ptr/length(s) pair is basically CSlice
-                Tag::Bytes | Tag::String | Tag::ByteArray | Tag::List(_) | Tag::Array(_, _) =>
-                    core::mem::align_of::<CSlice<()>>(),
-                Tag::Keyword(_) => unreachable!("Tag::Keyword should not appear in composite types"),
+                Tag::Bytes | Tag::String | Tag::ByteArray | Tag::List(_) | Tag::Array(_, _) => {
+                    core::mem::align_of::<CSlice<()>>()
+                }
+                Tag::Keyword(_) => {
+                    unreachable!("Tag::Keyword should not appear in composite types")
+                }
                 Tag::Object => core::mem::align_of::<u32>(),
             }
         }
@@ -489,7 +519,7 @@ mod tag {
 
     #[derive(Debug, Clone, Copy)]
     pub struct TagIterator<'a> {
-        pub data: &'a [u8]
+        pub data: &'a [u8],
     }
 
     impl<'a> TagIterator<'a> {
@@ -499,7 +529,7 @@ mod tag {
 
         pub fn next(&mut self) -> Option<Tag<'a>> {
             if self.data.len() == 0 {
-                return None
+                return None;
             }
 
             let tag_byte = self.data[0];
@@ -527,7 +557,7 @@ mod tag {
                 b'r' => Tag::Range(self.sub(1)),
                 b'k' => Tag::Keyword(self.sub(1)),
                 b'O' => Tag::Object,
-                _    => unreachable!()
+                _ => unreachable!(),
             })
         }
 
@@ -536,7 +566,9 @@ mod tag {
             for _ in 0..count {
                 self.next().expect("truncated tag");
             }
-            TagIterator { data: &data[..(data.len() - self.data.len())] }
+            TagIterator {
+                data: &data[..(data.len() - self.data.len())],
+            }
         }
     }
 
@@ -559,22 +591,14 @@ mod tag {
                 }
 
                 match tag {
-                    Tag::None =>
-                        write!(f, "None")?,
-                    Tag::Bool =>
-                        write!(f, "Bool")?,
-                    Tag::Int32 =>
-                        write!(f, "Int32")?,
-                    Tag::Int64 =>
-                        write!(f, "Int64")?,
-                    Tag::Float64 =>
-                        write!(f, "Float64")?,
-                    Tag::String =>
-                        write!(f, "String")?,
-                    Tag::Bytes =>
-                        write!(f, "Bytes")?,
-                    Tag::ByteArray =>
-                        write!(f, "ByteArray")?,
+                    Tag::None => write!(f, "None")?,
+                    Tag::Bool => write!(f, "Bool")?,
+                    Tag::Int32 => write!(f, "Int32")?,
+                    Tag::Int64 => write!(f, "Int64")?,
+                    Tag::Float64 => write!(f, "Float64")?,
+                    Tag::String => write!(f, "String")?,
+                    Tag::Bytes => write!(f, "Bytes")?,
+                    Tag::ByteArray => write!(f, "ByteArray")?,
                     Tag::Tuple(it, _) => {
                         write!(f, "Tuple(")?;
                         it.fmt(f)?;
@@ -600,8 +624,7 @@ mod tag {
                         it.fmt(f)?;
                         write!(f, ")")?;
                     }
-                    Tag::Object =>
-                        write!(f, "Object")?,
+                    Tag::Object => write!(f, "Object")?,
                 }
             }
 

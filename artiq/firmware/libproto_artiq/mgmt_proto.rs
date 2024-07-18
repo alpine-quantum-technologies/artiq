@@ -1,9 +1,9 @@
+use alloc::{string::String, vec::Vec};
 use core::str::Utf8Error;
-use alloc::{vec::Vec, string::String};
 #[cfg(feature = "log")]
 use log;
 
-use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
+use io::{Error as IoError, ProtoRead, ProtoWrite, Read, ReadStringError, Write};
 
 #[derive(Fail, Debug)]
 pub enum Error<T> {
@@ -16,7 +16,7 @@ pub enum Error<T> {
     #[fail(display = "invalid UTF-8: {}", _0)]
     Utf8(Utf8Error),
     #[fail(display = "{}", _0)]
-    Io(#[cause] IoError<T>)
+    Io(#[cause] IoError<T>),
 }
 
 impl<T> From<IoError<T>> for Error<T> {
@@ -29,13 +29,14 @@ impl<T> From<ReadStringError<IoError<T>>> for Error<T> {
     fn from(value: ReadStringError<IoError<T>>) -> Error<T> {
         match value {
             ReadStringError::Utf8(err) => Error::Utf8(err),
-            ReadStringError::Other(err) => Error::Io(err)
+            ReadStringError::Other(err) => Error::Io(err),
         }
     }
 }
 
 pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
-    where R: Read + ?Sized
+where
+    R: Read + ?Sized,
 {
     const MAGIC: &'static [u8] = b"ARTIQ management\n";
 
@@ -58,9 +59,16 @@ pub enum Request {
     #[cfg(feature = "log")]
     SetUartLogFilter(log::LevelFilter),
 
-    ConfigRead   { key: String },
-    ConfigWrite  { key: String, value: Vec<u8> },
-    ConfigRemove { key: String },
+    ConfigRead {
+        key: String,
+    },
+    ConfigWrite {
+        key: String,
+        value: Vec<u8>,
+    },
+    ConfigRemove {
+        key: String,
+    },
     ConfigErase,
 
     Reboot,
@@ -82,11 +90,13 @@ pub enum Reply<'a> {
 
 impl Request {
     pub fn read_from<R>(reader: &mut R) -> Result<Self, Error<R::ReadError>>
-        where R: Read + ?Sized
+    where
+        R: Read + ?Sized,
     {
         #[cfg(feature = "log")]
-        fn read_log_level_filter<T: Read + ?Sized>(reader: &mut T) ->
-                Result<log::LevelFilter, Error<T::ReadError>> {
+        fn read_log_level_filter<T: Read + ?Sized>(
+            reader: &mut T,
+        ) -> Result<log::LevelFilter, Error<T::ReadError>> {
             Ok(match reader.read_u8()? {
                 0 => log::LevelFilter::Off,
                 1 => log::LevelFilter::Error,
@@ -94,28 +104,28 @@ impl Request {
                 3 => log::LevelFilter::Info,
                 4 => log::LevelFilter::Debug,
                 5 => log::LevelFilter::Trace,
-                lv => return Err(Error::UnknownLogLevel(lv))
+                lv => return Err(Error::UnknownLogLevel(lv)),
             })
         }
 
         Ok(match reader.read_u8()? {
-            1  => Request::GetLog,
-            2  => Request::ClearLog,
-            7  => Request::PullLog,
+            1 => Request::GetLog,
+            2 => Request::ClearLog,
+            7 => Request::PullLog,
             #[cfg(feature = "log")]
             3 => Request::SetLogFilter(read_log_level_filter(reader)?),
             #[cfg(feature = "log")]
             6 => Request::SetUartLogFilter(read_log_level_filter(reader)?),
 
             12 => Request::ConfigRead {
-                key: reader.read_string()?
+                key: reader.read_string()?,
             },
             13 => Request::ConfigWrite {
-                key:   reader.read_string()?,
-                value: reader.read_bytes()?
+                key: reader.read_string()?,
+                value: reader.read_bytes()?,
             },
             14 => Request::ConfigRemove {
-                key: reader.read_string()?
+                key: reader.read_string()?,
             },
             15 => Request::ConfigErase,
 
@@ -123,14 +133,15 @@ impl Request {
 
             8 => Request::DebugAllocator,
 
-            ty => return Err(Error::UnknownPacket(ty))
+            ty => return Err(Error::UnknownPacket(ty)),
         })
     }
 }
 
 impl<'a> Reply<'a> {
     pub fn write_to<W>(&self, writer: &mut W) -> Result<(), IoError<W::WriteError>>
-        where W: Write + ?Sized
+    where
+        W: Write + ?Sized,
     {
         match *self {
             Reply::Success => {
@@ -152,7 +163,7 @@ impl<'a> Reply<'a> {
             Reply::ConfigData(ref bytes) => {
                 writer.write_u8(7)?;
                 writer.write_bytes(bytes)?;
-            },
+            }
 
             Reply::RebootImminent => {
                 writer.write_u8(3)?;

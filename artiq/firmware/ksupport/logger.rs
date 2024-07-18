@@ -5,7 +5,7 @@ use cstr_core::CStr;
 #[macro_export]
 macro_rules! core_log {
     ($($arg:tt)*) => {{
-	$crate::log::core_log_impl__(core::format_args!($($arg)*));
+	$crate::logger::core_log_impl__(core::format_args!($($arg)*));
     }};
 }
 

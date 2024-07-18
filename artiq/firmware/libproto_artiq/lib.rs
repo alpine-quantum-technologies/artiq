@@ -11,21 +11,21 @@ extern crate cslice;
 extern crate log;
 
 extern crate byteorder;
-extern crate io;
 extern crate dyld;
 extern crate eh;
+extern crate io;
 
 // Internal protocols.
-pub mod kernel_proto;
 pub mod drtioaux_proto;
+pub mod kernel_proto;
 
 // External protocols.
 #[cfg(feature = "alloc")]
-pub mod mgmt_proto;
-#[cfg(feature = "alloc")]
 pub mod analyzer_proto;
 #[cfg(feature = "alloc")]
+pub mod mgmt_proto;
+#[cfg(feature = "alloc")]
 pub mod moninj_proto;
+pub mod rpc_proto;
 #[cfg(feature = "alloc")]
 pub mod session_proto;
-pub mod rpc_proto;
