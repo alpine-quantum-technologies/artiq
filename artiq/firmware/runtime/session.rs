@@ -177,7 +177,6 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    log_buffer: String,
 }
 
 impl<'a> Session<'a> {
@@ -185,7 +184,6 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            log_buffer: String::new(),
         }
     }
 
@@ -193,15 +191,6 @@ impl<'a> Session<'a> {
         match self.kernel_state {
             KernelState::Absent | KernelState::Loaded => false,
             KernelState::Running | KernelState::RpcWait => true,
-        }
-    }
-
-    fn flush_log_buffer(&mut self) {
-        if &self.log_buffer[self.log_buffer.len() - 1..] == "\n" {
-            for line in self.log_buffer.lines() {
-                info!(target: "kernel", "{}", line);
-            }
-            self.log_buffer.clear()
         }
     }
 }
@@ -601,19 +590,13 @@ fn process_kern_message(
         }
 
         match request {
-            &kern::Log { args, .. } => {
-                use core::fmt::Write;
-                session
-                    .log_buffer
-                    .write_fmt(args)
-                    .unwrap_or_else(|_| warn!("cannot append to session log buffer"));
-                session.flush_log_buffer();
+            &kern::Log { level, args } => {
+                log!(target: "kernel", level, "{}", args);
                 kern_acknowledge()
             }
 
-            &kern::LogSlice { message, .. } => {
-                session.log_buffer += message;
-                session.flush_log_buffer();
+            &kern::LogSlice { level, message } => {
+                log!(target: "kernel", level, "{}", message);
                 kern_acknowledge()
             }
 

@@ -46,7 +46,7 @@ pub extern "C" fn urukul_init(board: usize) -> bool {
     match PERIPHERALS.urukul[board].init(false) {
         Ok(_) => true,
         Err(e) => {
-            core_log!("Urukul board init failed: {:?}", e);
+            core_log!(log::Level::Error, "Urukul board init failed: {:?}", e);
             rtio::break_realtime();
             false
         }
@@ -60,7 +60,7 @@ pub extern "C" fn urukul_channel_init(board: usize, channel: u8) -> bool {
     {
         Ok(_) => true,
         Err(e) => {
-            core_log!("Urukul channel init failed: {:?}", e);
+            core_log!(log::Level::Error, "Urukul channel init failed: {:?}", e);
             rtio::break_realtime();
             false
         }

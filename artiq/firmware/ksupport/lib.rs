@@ -145,20 +145,16 @@ static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
 pub extern "C" fn send_to_core_log(text: CSlice<u8>) {
-    use log::Level;
-
+    let level = log::Level::Info;
     match str::from_utf8(text.as_ref()) {
-        Ok(message) => send(&LogSlice {
-            level: Level::Info,
-            message,
-        }),
+        Ok(message) => send(&LogSlice { level, message }),
         Err(e) => {
             send(&LogSlice {
-                level: Level::Info,
+                level,
                 message: str::from_utf8(&text.as_ref()[..e.valid_up_to()]).unwrap(),
             });
             send(&LogSlice {
-                level: Level::Info,
+                level,
                 message: "(invalid utf-8)\n",
             });
         }
