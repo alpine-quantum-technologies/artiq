@@ -147,6 +147,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /* proxified syscalls */
     api!(core_log), // keep proxified call for backwards compatibility
     api!(core_log_new = ::logger::core_log_api),
+    api!(host_log = ::logger::host_log_api),
     /* RTIO */
     api!(now = csr::rtio::NOW_HI_ADDR as *const _),
     api!(now_mu = ::rtio::now_mu),
