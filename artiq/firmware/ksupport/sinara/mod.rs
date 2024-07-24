@@ -7,6 +7,8 @@ mod ttl;
 mod urukul;
 
 #[cfg(has_sinara_urukul)]
+use crate::rtio;
+#[cfg(has_sinara_urukul)]
 use crate::spi2;
 
 include!(concat!(env!("OUT_DIR"), "/peripherals.rs"));
@@ -41,14 +43,28 @@ pub extern "C" fn urukul_count() -> usize {
 }
 
 pub extern "C" fn urukul_init(board: usize) -> bool {
-    PERIPHERALS.urukul[board].init(false).is_ok()
+    match PERIPHERALS.urukul[board].init(false) {
+        Ok(_) => true,
+        Err(e) => {
+            core_log!(log::Level::Error, "Urukul board init failed: {:?}", e);
+            rtio::break_realtime();
+            false
+        }
+    }
 }
 
 pub extern "C" fn urukul_channel_init(board: usize, channel: u8) -> bool {
-    PERIPHERALS.urukul[board]
+    match PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
         .init(false)
-        .is_ok()
+    {
+        Ok(_) => true,
+        Err(e) => {
+            core_log!(log::Level::Error, "Urukul channel init failed: {:?}", e);
+            rtio::break_realtime();
+            false
+        }
+    }
 }
 
 pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> bool {

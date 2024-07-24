@@ -1,10 +1,12 @@
+#[cfg(feature = "log")]
 use core::fmt;
+
 use cslice::CSlice;
 use dyld;
 
-pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x45000000;
+pub const KERNELCPU_EXEC_ADDRESS: usize = 0x45000000;
 pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x45060000;
-pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
+pub const KERNELCPU_LAST_ADDRESS: usize = 0x4fffffff;
 
 // Must match the offset of the first (starting at KERNELCPU_EXEC_ADDRESS)
 // section in ksupport.elf.
@@ -16,7 +18,7 @@ pub enum SubkernelStatus {
     Timeout,
     IncorrectState,
     CommLost,
-    OtherError
+    OtherError,
 }
 
 #[derive(Debug)]
@@ -26,25 +28,29 @@ pub enum Message<'a> {
 
     RtioInitRequest,
 
-    RtioDestinationStatusRequest { destination: u8 },
-    RtioDestinationStatusReply { up: bool },
+    RtioDestinationStatusRequest {
+        destination: u8,
+    },
+    RtioDestinationStatusReply {
+        up: bool,
+    },
 
     DmaRecordStart(&'a str),
     DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
-        duration:  u64,
-        enable_ddma: bool
+        duration: u64,
+        enable_ddma: bool,
     },
 
     DmaEraseRequest {
-        name: &'a str
+        name: &'a str,
     },
 
     DmaRetrieveRequest {
-        name: &'a str
+        name: &'a str,
     },
     DmaRetrieveReply {
-        trace:    Option<&'a [u8]>,
+        trace: Option<&'a [u8]>,
         duration: u64,
         uses_ddma: bool,
     },
@@ -54,21 +60,20 @@ pub enum Message<'a> {
         timestamp: i64,
     },
     DmaAwaitRemoteRequest {
-        id: i32
+        id: i32,
     },
     DmaAwaitRemoteReply {
         timeout: bool,
         error: u8,
         channel: u32,
-        timestamp: u64
+        timestamp: u64,
     },
-
 
     RunFinished,
     RunException {
         exceptions: &'a [Option<eh::eh_artiq::Exception<'a>>],
         stack_pointers: &'a [eh::eh_artiq::StackPointerBacktrace],
-        backtrace: &'a [(usize, usize)]
+        backtrace: &'a [(usize, usize)],
     },
     RunAborted,
 
@@ -76,43 +81,125 @@ pub enum Message<'a> {
         async: bool,
         service: u32,
         tag: &'a [u8],
-        data: *const *const ()
+        data: *const *const (),
     },
     RpcRecvRequest(*mut ()),
     RpcRecvReply(Result<usize, eh::eh_artiq::Exception<'a>>),
     RpcFlush,
 
-    CacheGetRequest { key: &'a str },
-    CacheGetReply   { value: *const CSlice<'static, i32> },
-    CachePutRequest { key: &'a str, value: &'a [i32] },
-    CachePutReply   { succeeded: bool },
+    CacheGetRequest {
+        key: &'a str,
+    },
+    CacheGetReply {
+        value: *const CSlice<'static, i32>,
+    },
+    CachePutRequest {
+        key: &'a str,
+        value: &'a [i32],
+    },
+    CachePutReply {
+        succeeded: bool,
+    },
 
-    I2cStartRequest { busno: u32 },
-    I2cRestartRequest { busno: u32 },
-    I2cStopRequest { busno: u32 },
-    I2cWriteRequest { busno: u32, data: u8 },
-    I2cWriteReply { succeeded: bool, ack: bool },
-    I2cReadRequest { busno: u32, ack: bool },
-    I2cReadReply { succeeded: bool, data: u8 },
-    I2cBasicReply { succeeded: bool },
-    I2cSwitchSelectRequest { busno: u32, address: u8, mask: u8 },
+    I2cStartRequest {
+        busno: u32,
+    },
+    I2cRestartRequest {
+        busno: u32,
+    },
+    I2cStopRequest {
+        busno: u32,
+    },
+    I2cWriteRequest {
+        busno: u32,
+        data: u8,
+    },
+    I2cWriteReply {
+        succeeded: bool,
+        ack: bool,
+    },
+    I2cReadRequest {
+        busno: u32,
+        ack: bool,
+    },
+    I2cReadReply {
+        succeeded: bool,
+        data: u8,
+    },
+    I2cBasicReply {
+        succeeded: bool,
+    },
+    I2cSwitchSelectRequest {
+        busno: u32,
+        address: u8,
+        mask: u8,
+    },
 
-    SpiSetConfigRequest { busno: u32, flags: u8, length: u8, div: u8, cs: u8 },
-    SpiWriteRequest { busno: u32, data: u32 },
-    SpiReadRequest { busno: u32 },
-    SpiReadReply { succeeded: bool, data: u32 },
-    SpiBasicReply { succeeded: bool },
+    SpiSetConfigRequest {
+        busno: u32,
+        flags: u8,
+        length: u8,
+        div: u8,
+        cs: u8,
+    },
+    SpiWriteRequest {
+        busno: u32,
+        data: u32,
+    },
+    SpiReadRequest {
+        busno: u32,
+    },
+    SpiReadReply {
+        succeeded: bool,
+        data: u32,
+    },
+    SpiBasicReply {
+        succeeded: bool,
+    },
 
-    SubkernelLoadRunRequest { id: u32, destination: u8, run: bool },
-    SubkernelLoadRunReply { succeeded: bool },
-    SubkernelAwaitFinishRequest { id: u32, timeout: i64 },
-    SubkernelAwaitFinishReply { status: SubkernelStatus },
-    SubkernelMsgSend { id: u32, destination: Option<u8>, count: u8, tag: &'a [u8], data: *const *const () },
-    SubkernelMsgRecvRequest { id: i32, timeout: i64, tags: &'a [u8] },
-    SubkernelMsgRecvReply { status: SubkernelStatus, count: u8 },
+    SubkernelLoadRunRequest {
+        id: u32,
+        destination: u8,
+        run: bool,
+    },
+    SubkernelLoadRunReply {
+        succeeded: bool,
+    },
+    SubkernelAwaitFinishRequest {
+        id: u32,
+        timeout: i64,
+    },
+    SubkernelAwaitFinishReply {
+        status: SubkernelStatus,
+    },
+    SubkernelMsgSend {
+        id: u32,
+        destination: Option<u8>,
+        count: u8,
+        tag: &'a [u8],
+        data: *const *const (),
+    },
+    SubkernelMsgRecvRequest {
+        id: i32,
+        timeout: i64,
+        tags: &'a [u8],
+    },
+    SubkernelMsgRecvReply {
+        status: SubkernelStatus,
+        count: u8,
+    },
 
-    Log(fmt::Arguments<'a>),
-    LogSlice(&'a str)
+    #[cfg(feature = "log")]
+    Log {
+        level: log::Level,
+        args: fmt::Arguments<'a>,
+    },
+
+    #[cfg(feature = "log")]
+    LogSlice {
+        level: log::Level,
+        message: &'a str,
+    },
 }
 
 pub use self::Message::*;

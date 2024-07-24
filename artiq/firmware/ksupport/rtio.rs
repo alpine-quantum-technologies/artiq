@@ -62,6 +62,10 @@ mod imp {
         unsafe { ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64) }
     }
 
+    pub extern "C" fn break_realtime() {
+        at_mu(now_mu() + 125_000)
+    }
+
     // writing the LSB of o_data (offset=0) triggers the RTIO write
     #[inline(always)]
     pub unsafe fn rtio_o_data_write(offset: usize, data: u32) {

@@ -20,7 +20,7 @@ io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
 board_misoc = { path = "../libboard_misoc" }
 board_artiq = { path = "../libboard_artiq" }
-proto_artiq = { path = "../libproto_artiq" }
+proto_artiq = { path = "../libproto_artiq", features = ["log"] }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
 libc = { path = "../libc" }
 unwind = { path = "../libunwind" }
@@ -28,3 +28,6 @@ num_enum = { version = "0.7.2", default-features = false }
 bitflags = "2.4"
 sinara_config = { path = "../libsinara_config" }
 ad9910-pac = { path = "../ad9910-pac" }
+arrayvec = { version = "0.7", default-features = false }
+cstr_core = { version = "0.2.6", default-features = false }
+log = { version = "0.4", default-features = false }
