@@ -47,12 +47,6 @@ impl Cpld {
 
         rtio::delay_mu(1_000_000); // DDS wake-up
 
-        // Initialize channels.
-        self.channel(Channel::Zero).init(blind)?;
-        self.channel(Channel::One).init(blind)?;
-        self.channel(Channel::Two).init(blind)?;
-        self.channel(Channel::Three).init(blind)?;
-
         Ok(())
     }
 
@@ -106,7 +100,7 @@ impl Cpld {
         Ok(())
     }
 
-    /// Read the coarse attenuation setting for all channels (4 bits per channel, little-endian).
+    /// Read the coarse attenuation setting for all channels (1 byte per channel, little-endian).
     pub fn read_attenuation_register(&self) -> Result<u32> {
         // Shift in zeros, shift out current value, don't latch.
         self.bus

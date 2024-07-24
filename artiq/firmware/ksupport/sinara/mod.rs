@@ -36,12 +36,19 @@ pub extern "C" fn led_count() -> usize {
     PERIPHERALS.led.len()
 }
 
+pub extern "C" fn urukul_count() -> usize {
+    PERIPHERALS.urukul.len()
+}
+
 pub extern "C" fn urukul_init(board: usize) -> bool {
     PERIPHERALS.urukul[board].init(false).is_ok()
 }
 
-pub extern "C" fn urukul_count() -> usize {
-    PERIPHERALS.urukul.len()
+pub extern "C" fn urukul_channel_init(board: usize, channel: u8) -> bool {
+    PERIPHERALS.urukul[board]
+        .channel(channel.try_into().unwrap())
+        .init(false)
+        .is_ok()
 }
 
 pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> bool {
@@ -61,28 +68,27 @@ pub extern "C" fn urukul_read_coarse_attenuation(board: usize, att_mu: *mut u32)
     }
 }
 
-pub extern "C" fn urukul_channel_rf_on(channel: usize) {
-    let (board, channel) = decode_urukul_channel(channel);
+pub extern "C" fn urukul_channel_rf_on(board: usize, channel: u8) {
     PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
         .switch_on()
 }
 
-pub extern "C" fn urukul_channel_rf_off(channel: usize) {
-    let (board, channel) = decode_urukul_channel(channel);
+pub extern "C" fn urukul_channel_rf_off(board: usize, channel: u8) {
     PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
         .switch_off()
 }
 
-pub extern "C" fn urukul_channel_set_mu(channel: usize, ftw: u32, pow: u16, asf: u16) -> bool {
-    let (board, channel) = decode_urukul_channel(channel);
+pub extern "C" fn urukul_channel_set_mu(
+    board: usize,
+    channel: u8,
+    ftw: u32,
+    pow: u16,
+    asf: u16,
+) -> bool {
     PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
         .set_mu(ftw, pow, asf)
         .is_ok()
-}
-
-fn decode_urukul_channel(channel: usize) -> (usize, usize) {
-    (channel / 4, channel % 4)
 }
