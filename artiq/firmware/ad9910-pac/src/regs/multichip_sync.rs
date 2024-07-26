@@ -1,3 +1,6 @@
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 #[doc = "Register `multichip_sync` reader"]
 pub struct R(crate::R<MultichipSyncSpec>);
 impl core::ops::Deref for R {
@@ -115,12 +118,55 @@ impl<'a> SyncStatePresetValueW<'a> {
         self.w
     }
 }
+
+#[doc = "Sync generator polarity"]
+#[derive(
+    Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr,
+)]
+#[repr(u8)]
+pub enum SyncGeneratorPolarityA {
+    #[doc = "Synchronization clock generator coincident with the rising edge of SYSCLK"]
+    RisingEdge = 0,
+
+    #[doc = "Synchronization clock generator coincident with the falling edge of SYSCLK"]
+    FallingEdge = 1,
+}
+
+impl Default for SyncGeneratorPolarityA {
+    fn default() -> Self {
+        Self::RisingEdge
+    }
+}
+
+impl From<SyncGeneratorPolarityA> for bool {
+    fn from(variant: SyncGeneratorPolarityA) -> Self {
+        let value: u8 = variant.into();
+        value != 0
+    }
+}
+
+impl From<bool> for SyncGeneratorPolarityA {
+    fn from(bit: bool) -> Self {
+        if bit {
+            Self::FallingEdge
+        } else {
+            Self::RisingEdge
+        }
+    }
+}
+
 #[doc = "Field `sync_generator_polarity` reader - Sync generator polarity"]
 pub struct SyncGeneratorPolarityR(crate::FieldReader<bool>);
 impl SyncGeneratorPolarityR {
     #[inline(always)]
     pub(crate) fn new(bits: bool) -> Self {
         Self(crate::FieldReader::new(bits))
+    }
+
+    #[doc = "Get enumerated values variant"]
+    #[inline(always)]
+    pub fn variant(&self) -> Option<SyncGeneratorPolarityA> {
+        Some(self.bits.into())
     }
 }
 impl core::ops::Deref for SyncGeneratorPolarityR {
@@ -150,6 +196,11 @@ impl<'a> SyncGeneratorPolarityW<'a> {
     pub fn bit(self, value: bool) -> &'a mut W {
         self.w.bits = (self.w.bits & !(1 << 25)) | ((value as u32 & 1) << 25);
         self.w
+    }
+    #[doc = "Writes `variant` to the field"]
+    #[inline(always)]
+    pub fn variant(self, variant: SyncGeneratorPolarityA) -> &'a mut W {
+        self.bit(variant.into())
     }
 }
 #[doc = "Field `sync_generator_enable` reader - Sync generator enable"]
