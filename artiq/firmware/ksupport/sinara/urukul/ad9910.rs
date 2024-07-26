@@ -95,6 +95,13 @@ impl Ad9910<'_> {
         Ok(sync_data)
     }
 
+    pub fn setup_sync(&self, data: &SyncData) -> Result<()> {
+        self.set_sync(data.sync_delay_seed, data.validation_window)?;
+        self.clear_smp_err()?;
+        rtio::delay_mu(1_000_000); // slack
+        Ok(())
+    }
+
     /// Enable the RF output (close the switch).
     pub fn switch_on(&self) {
         self.config.switch_device.on()
@@ -118,7 +125,7 @@ impl Ad9910<'_> {
     pub fn set_mu_coherent(
         &self,
         ftw: u32,
-        mut pow: u16,
+        pow: u16,
         asf: u16,
         ref_time_mu: i64,
         io_update_delay_mu: i64,
@@ -132,9 +139,10 @@ impl Ad9910<'_> {
                 .set_bit()
         })?;
 
-        let sysclk_per_mu = 1_000_000_000 * 8; // TODO: calculate elsewhere
+        let sysclk_per_mu = 1_000_000_000 * 8i64; // TODO: calculate elsewhere
         let dt = rtio::now_mu() - ref_time_mu;
-        pow += ((dt * (ftw as i64) * sysclk_per_mu) >> 16) as u16;
+        let pow = (pow as i64) + ((dt * (ftw as i64) * sysclk_per_mu) >> 16);
+        let pow = (pow & 0xffff) as u16;
 
         ad9910_pac::regs(self)
             .single_tone_profile7()
@@ -143,10 +151,51 @@ impl Ad9910<'_> {
         rtio::delay_mu(io_update_delay_mu);
         self.cpld.pulse_io_update(8)?;
 
+        rtio::at_mu(rtio::now_mu() & !7);
         ad9910_pac::regs(self)
             .cfr1()
             .write(|w| w.sdio_input_only().set_bit())?;
         Ok(pow)
+    }
+
+    fn set_sync(&self, sync_delay: u8, window: u8) -> Result<()> {
+        use ad9910_pac::regs::multichip_sync::SyncGeneratorPolarityA::RisingEdge;
+
+        ad9910_pac::regs(self).multichip_sync().write(|w| unsafe {
+            w.sync_validation_delay()
+                .bits(window)
+                .sync_receiver_enable()
+                .set_bit()
+                .sync_generator_enable()
+                .clear_bit()
+                .sync_generator_polarity()
+                .variant(RisingEdge)
+                .sync_state_preset_value()
+                .bits(0)
+                .output_sync_generator_delay()
+                .bits(0)
+                .input_sync_receiver_delay()
+                .bits(sync_delay)
+        })?;
+        Ok(())
+    }
+
+    fn clear_smp_err(&self) -> Result<()> {
+        ad9910_pac::regs(self)
+            .cfr2()
+            .write(|w| w.sync_timing_validation_disable().set_bit())?;
+        self.cpld.pulse_io_update(1_000)?;
+        rtio::delay_mu(10_000); // slack
+        ad9910_pac::regs(self).cfr2().write(|w| {
+            w.enable_amplitude_scale_from_single_tone_profiles()
+                .set_bit()
+                .read_effective_ftw()
+                .set_bit()
+                .sync_timing_validation_disable()
+                .clear_bit()
+        })?;
+        rtio::delay_mu(10_000); // slack
+        self.cpld.pulse_io_update(1_000)
     }
 }
 

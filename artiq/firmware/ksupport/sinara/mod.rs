@@ -53,17 +53,21 @@ pub extern "C" fn urukul_channel_init(board: usize, channel: u8) -> bool {
         .is_ok()
 }
 
-pub extern "C" fn urukul_channel_read_sync_data(
+pub extern "C" fn urukul_channel_setup_sync(
     board: usize,
     channel: u8,
     sync_data: *mut urukul::SyncData,
 ) -> bool {
+    if sync_data.is_null() {
+        return false;
+    }
+
     let board = &PERIPHERALS.urukul[board];
     let channel = board.channel(channel.try_into().unwrap());
 
     if let Ok(data) = channel.read_sync_data() {
         unsafe { *sync_data = data };
-        true
+        channel.setup_sync(&data).is_ok()
     } else {
         false
     }
@@ -113,13 +117,23 @@ pub extern "C" fn urukul_channel_set_mu_coherent(
     board: usize,
     channel: u8,
     ftw: u32,
-    pow: u16,
+    pow: *mut u16,
     asf: u16,
     ref_time_mu: i64,
     io_update_delay_mu: i64,
 ) -> bool {
-    PERIPHERALS.urukul[board]
+    if pow.is_null() {
+        // TODO: log error
+        return false;
+    }
+
+    if let Ok(new_pow) = PERIPHERALS.urukul[board]
         .channel(channel.try_into().unwrap())
-        .set_mu_coherent(ftw, pow, asf, ref_time_mu, io_update_delay_mu)
-        .is_ok()
+        .set_mu_coherent(ftw, unsafe { *pow }, asf, ref_time_mu, io_update_delay_mu)
+    {
+        unsafe { *pow = new_pow };
+        true
+    } else {
+        false
+    }
 }
