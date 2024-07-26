@@ -133,8 +133,9 @@ impl<'a> Urukul<'a> {
                             MaybeOnEeprom::Value(sync_delay_seed),
                             MaybeOnEeprom::Value(io_update_delay),
                         ) => sinara_config::urukul::SyncDataSource::User {
-                            sync_delay_seed: *sync_delay_seed,
-                            io_update_delay: *io_update_delay,
+                            sync_delay_seed: *sync_delay_seed as u8,
+                            io_update_delay: *io_update_delay as u8,
+			    validation_window: 0, // FIXME: expand device_db format
                         },
 			(
 			    MaybeOnEeprom::EepromAddress(sync_delay_seed_loc),
@@ -323,12 +324,14 @@ impl<'a> Urukul<'a> {
                 sinara_config::urukul::SyncDataSource::User {
                     sync_delay_seed,
                     io_update_delay,
+                    validation_window,
                 } => {
                     #[rustfmt::skip]
 		    quote! {
 			sinara_config::urukul::SyncDataSource::User {
 			    sync_delay_seed: #sync_delay_seed,
 			    io_update_delay: #io_update_delay,
+			    validation_window: #validation_window,
 			}
 		    }
                 }

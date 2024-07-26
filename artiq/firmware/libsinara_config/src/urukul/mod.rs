@@ -88,7 +88,8 @@ pub enum SyncDataSource {
         offset: u32,
     },
     User {
-        sync_delay_seed: i32,
-        io_update_delay: i32,
+        sync_delay_seed: u8,
+        io_update_delay: u8,
+        validation_window: u8,
     },
 }

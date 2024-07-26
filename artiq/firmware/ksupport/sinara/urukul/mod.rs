@@ -53,8 +53,9 @@ pub struct SyncGen {
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 pub struct SyncData {
-    pub sync_delay_seed: i32,
-    pub io_update_delay: i32,
+    pub sync_delay_seed: u8,
+    pub io_update_delay: u8,
+    pub validation_window: u8,
 }
 
 /// SPI bus configuration.
@@ -154,6 +155,7 @@ impl SyncData {
         Self {
             sync_delay_seed: 0,
             io_update_delay: 0,
+            validation_window: 0,
         }
     }
 
@@ -162,19 +164,30 @@ impl SyncData {
             SyncDataSource::User {
                 sync_delay_seed,
                 io_update_delay,
+                validation_window,
             } => Ok(Self {
                 sync_delay_seed,
                 io_update_delay,
+                validation_window,
             }),
             SyncDataSource::Eeprom { port, offset } => {
                 let word = i2c_bus.eeprom_read_i32(port, offset as i32)?;
-                let word = word >> 16;
-                let sync_delay_seed = (word >> 8) & 0xff;
-                let io_update_delay = if word & 0xff != 0xff { word & 0xff } else { 0 };
+                // EEPROM layout:
+                // | sync_delay_seed (8) | io_update_delay (8) | validation_window (8) | reserved (8) |
+                let word = word >> 8;
+                let validation_window = (word & 0xff) as u8;
+                let word = word >> 8;
+                let sync_delay_seed = ((word >> 8) & 0xff) as u8;
+                let io_update_delay = if word & 0xff != 0xff {
+                    (word & 0xff) as u8
+                } else {
+                    0
+                };
 
                 Ok(Self {
                     sync_delay_seed,
                     io_update_delay,
+                    validation_window,
                 })
             }
         }
