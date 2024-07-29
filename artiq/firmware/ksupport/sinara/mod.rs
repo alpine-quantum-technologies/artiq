@@ -91,6 +91,10 @@ pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> 
 }
 
 pub extern "C" fn urukul_read_coarse_attenuation(board: usize, att_mu: *mut u32) -> bool {
+    if att_mu.is_null() {
+        return false;
+    }
+
     if let Ok(att) = PERIPHERALS.urukul[board].read_attenuation_register() {
         unsafe { *att_mu = att };
         true
@@ -134,7 +138,6 @@ pub extern "C" fn urukul_channel_set_mu_coherent(
     io_update_delay_mu: i64,
 ) -> bool {
     if pow.is_null() {
-        // TODO: log error
         return false;
     }
 
