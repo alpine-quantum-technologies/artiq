@@ -35,14 +35,16 @@ impl Ad9910<'_> {
             rtio::delay_mu(50_000); // slack
         }
 
-        ad9910_pac::regs(self).cfr2().write(|w| {
-            w.enable_amplitude_scale_from_single_tone_profiles()
-                .set_bit()
-                .read_effective_ftw()
-                .set_bit()
-                .sync_timing_validation_disable()
-                .set_bit()
-        })?;
+        unsafe {
+            ad9910_pac::regs(self).cfr2().write_with_zero(|w| {
+                w.enable_amplitude_scale_from_single_tone_profiles()
+                    .set_bit()
+                    .read_effective_ftw()
+                    .set_bit()
+                    .sync_timing_validation_disable()
+                    .set_bit()
+            })?;
+        }
         self.cpld.pulse_io_update(1_000)?;
 
         let pll_vco = self.config.pll_vco;
@@ -63,6 +65,8 @@ impl Ad9910<'_> {
                 .bit(pll_en)
                 .pfd_reset()
                 .set_bit()
+                .drv0()
+                .variant(ad9910_pac::regs::cfr3::Drv0A::Disabled)
         })?;
         self.cpld.pulse_io_update(1_000)?;
 
@@ -98,7 +102,7 @@ impl Ad9910<'_> {
     pub fn setup_sync(&self, data: &SyncData) -> Result<()> {
         self.set_sync(data.sync_delay_seed, data.validation_window)?;
         self.clear_smp_err()?;
-        rtio::delay_mu(1_000_000); // slack
+        rtio::delay_mu(10_000_000); // slack
         Ok(())
     }
 
@@ -139,9 +143,9 @@ impl Ad9910<'_> {
                 .set_bit()
         })?;
 
-        let sysclk_per_mu = 1_000_000_000 * 8i64; // TODO: calculate elsewhere
-        let dt = rtio::now_mu() - ref_time_mu;
-        let pow = (pow as i64) + ((dt * (ftw as i64) * sysclk_per_mu) >> 16);
+        let sysclk_per_mu = 1; // TODO: calculate this elsewhere.
+        let dt = (rtio::now_mu() as i32) - (ref_time_mu as i32);
+        let pow = (pow as i32) + ((dt * (ftw as i32) * sysclk_per_mu) >> 16);
         let pow = (pow & 0xffff) as u16;
 
         ad9910_pac::regs(self)
@@ -186,14 +190,16 @@ impl Ad9910<'_> {
             .write(|w| w.sync_timing_validation_disable().set_bit())?;
         self.cpld.pulse_io_update(1_000)?;
         rtio::delay_mu(10_000); // slack
-        ad9910_pac::regs(self).cfr2().write(|w| {
-            w.enable_amplitude_scale_from_single_tone_profiles()
-                .set_bit()
-                .read_effective_ftw()
-                .set_bit()
-                .sync_timing_validation_disable()
-                .clear_bit()
-        })?;
+        unsafe {
+            ad9910_pac::regs(self).cfr2().write_with_zero(|w| {
+                w.enable_amplitude_scale_from_single_tone_profiles()
+                    .set_bit()
+                    .read_effective_ftw()
+                    .set_bit()
+                    .sync_timing_validation_disable()
+                    .clear_bit()
+            })?;
+        }
         rtio::delay_mu(10_000); // slack
         self.cpld.pulse_io_update(1_000)
     }

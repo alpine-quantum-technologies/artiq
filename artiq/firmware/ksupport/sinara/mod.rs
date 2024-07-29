@@ -53,7 +53,7 @@ pub extern "C" fn urukul_channel_init(board: usize, channel: u8) -> bool {
         .is_ok()
 }
 
-pub extern "C" fn urukul_channel_setup_sync(
+pub extern "C" fn urukul_channel_read_sync_data(
     board: usize,
     channel: u8,
     sync_data: *mut urukul::SyncData,
@@ -67,10 +67,21 @@ pub extern "C" fn urukul_channel_setup_sync(
 
     if let Ok(data) = channel.read_sync_data() {
         unsafe { *sync_data = data };
-        channel.setup_sync(&data).is_ok()
+        true
     } else {
         false
     }
+}
+
+pub extern "C" fn urukul_channel_setup_sync(
+    board: usize,
+    channel: u8,
+    sync_data: urukul::SyncData,
+) -> bool {
+    PERIPHERALS.urukul[board]
+        .channel(channel.try_into().unwrap())
+        .setup_sync(&sync_data)
+        .is_ok()
 }
 
 pub extern "C" fn urukul_write_coarse_attenuation(board: usize, att_mu: u32) -> bool {
