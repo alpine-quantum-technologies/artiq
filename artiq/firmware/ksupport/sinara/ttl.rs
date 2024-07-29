@@ -40,7 +40,7 @@ impl TtlOut {
 #[cfg_attr(not(has_sinara_ttl_clk_gen), allow(dead_code))]
 impl TtlClockGen {
     pub fn set_mu(&self, ftw: i32) {
-        rtio::output(self.channel, ftw)
+        rtio::output(self.channel << 8, ftw)
     }
 
     pub fn stop(&self) {
