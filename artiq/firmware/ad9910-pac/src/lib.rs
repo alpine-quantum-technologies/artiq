@@ -221,4 +221,21 @@ mod tests {
             .unwrap();
         assert_eq!(regs.multichip_sync().read().unwrap().bits(), 0x28000098);
     }
+
+    #[test]
+    fn cfr1_autoclear() {
+        let dev = Device::default();
+        let regs = Registers::on(&dev);
+
+        regs.cfr1()
+            .write(|w| {
+                w.sdio_input_only()
+                    .set_bit()
+                    .autoclear_phase_accumulator()
+                    .set_bit()
+            })
+            .unwrap();
+
+        assert_eq!(regs.cfr1().read().unwrap().bits(), 0x2002);
+    }
 }
