@@ -3,7 +3,7 @@ use cslice::CSlice;
 use dyld;
 
 pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x45000000;
-pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x45060000;
+pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x450f0000;
 pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 
 // Must match the offset of the first (starting at KERNELCPU_EXEC_ADDRESS)

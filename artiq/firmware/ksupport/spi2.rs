@@ -100,5 +100,5 @@ impl ConfiguredBus {
 }
 
 fn xfer_duration_mu(div: i32, length: i32, ref_multiplier: i64) -> i64 {
-    ((length as i64) + 1) * ((div as i64) + 1) * ref_multiplier
+    (((length as i64) + 1) * (div as i64) + 1) * ref_multiplier
 }

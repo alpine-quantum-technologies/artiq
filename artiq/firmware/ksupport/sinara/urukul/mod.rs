@@ -1,8 +1,8 @@
 use core::convert::{TryFrom, TryInto};
 
 use super::ttl;
-use crate::spi2;
-use sinara_config::urukul::InvalidConfig;
+use crate::{nrt_bus::i2c, spi2};
+use sinara_config::urukul::{InvalidConfig, SyncDataSource};
 
 mod ad9910;
 mod cpld;
@@ -14,6 +14,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Error {
     Spi(spi2::Error),
+    I2c(i2c::Error),
     Config(InvalidConfig),
     ProtoRevMismatch,
     Ad9910AuxDacMismatch,
@@ -23,6 +24,12 @@ pub enum Error {
 impl From<spi2::Error> for Error {
     fn from(other: spi2::Error) -> Self {
         Self::Spi(other)
+    }
+}
+
+impl From<i2c::Error> for Error {
+    fn from(other: i2c::Error) -> Self {
+        Self::I2c(other)
     }
 }
 
@@ -40,6 +47,15 @@ pub struct SyncGen {
 
     /// Synchronization clock divider.
     pub div: u8,
+}
+
+/// Synchronization data.
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(C)]
+pub struct SyncData {
+    pub sync_delay_seed: u8,
+    pub io_update_delay: u8,
+    pub validation_window: u8,
 }
 
 /// SPI bus configuration.
@@ -131,5 +147,55 @@ impl From<Channel> for sinara_config::urukul::ChannelFlags {
             Channel::Two => Self::Two,
             Channel::Three => Self::Three,
         }
+    }
+}
+
+impl SyncData {
+    pub const fn new() -> Self {
+        Self {
+            sync_delay_seed: 0,
+            io_update_delay: 0,
+            validation_window: 0,
+        }
+    }
+
+    pub fn init(source: SyncDataSource, i2c_bus: &i2c::KasliI2C) -> Result<Self> {
+        match source {
+            SyncDataSource::User {
+                sync_delay_seed,
+                io_update_delay,
+                validation_window,
+            } => Ok(Self {
+                sync_delay_seed,
+                io_update_delay,
+                validation_window,
+            }),
+            SyncDataSource::Eeprom { port, offset } => {
+                let word = i2c_bus.eeprom_read_i32(port, offset as i32)?;
+                // EEPROM layout:
+                // | sync_delay_seed (8) | io_update_delay (8) | validation_window (8) | reserved (8) |
+                let word = word >> 8;
+                let validation_window = (word & 0xff) as u8;
+                let word = word >> 8;
+                let sync_delay_seed = ((word >> 8) & 0xff) as u8;
+                let io_update_delay = if word & 0xff != 0xff {
+                    (word & 0xff) as u8
+                } else {
+                    0
+                };
+
+                Ok(Self {
+                    sync_delay_seed,
+                    io_update_delay,
+                    validation_window,
+                })
+            }
+        }
+    }
+}
+
+impl Default for SyncData {
+    fn default() -> Self {
+        Self::new()
     }
 }

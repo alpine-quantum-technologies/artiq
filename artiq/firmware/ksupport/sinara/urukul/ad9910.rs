@@ -1,4 +1,4 @@
-use super::{cpld::ChannelDesc, Channel, Cpld, Cs, Error, Result, SpiConfig};
+use super::{cpld::ChannelDesc, Channel, Cpld, Cs, Error, Result, SpiConfig, SyncData};
 use crate::{rtio, spi2};
 
 /// Urukul AD9910 channel.
@@ -35,14 +35,16 @@ impl Ad9910<'_> {
             rtio::delay_mu(50_000); // slack
         }
 
-        ad9910_pac::regs(self).cfr2().write(|w| {
-            w.enable_amplitude_scale_from_single_tone_profiles()
-                .set_bit()
-                .read_effective_ftw()
-                .set_bit()
-                .sync_timing_validation_disable()
-                .set_bit()
-        })?;
+        unsafe {
+            ad9910_pac::regs(self).cfr2().write_with_zero(|w| {
+                w.enable_amplitude_scale_from_single_tone_profiles()
+                    .set_bit()
+                    .read_effective_ftw()
+                    .set_bit()
+                    .sync_timing_validation_disable()
+                    .set_bit()
+            })?;
+        }
         self.cpld.pulse_io_update(1_000)?;
 
         let pll_vco = self.config.pll_vco;
@@ -63,6 +65,8 @@ impl Ad9910<'_> {
                 .bit(pll_en)
                 .pfd_reset()
                 .set_bit()
+                .drv0()
+                .variant(ad9910_pac::regs::cfr3::Drv0A::Disabled)
         })?;
         self.cpld.pulse_io_update(1_000)?;
 
@@ -89,6 +93,19 @@ impl Ad9910<'_> {
         Ok(())
     }
 
+    pub fn read_sync_data(&self) -> Result<SyncData> {
+        let sync_data = SyncData::init(self.config.sync_data_source, &self.cpld.i2c_bus)?;
+        rtio::delay_mu(50_000_000);
+        Ok(sync_data)
+    }
+
+    pub fn setup_sync(&self, data: &SyncData) -> Result<()> {
+        self.set_sync(data.sync_delay_seed, data.validation_window)?;
+        self.clear_smp_err()?;
+        rtio::delay_mu(10_000_000); // slack
+        Ok(())
+    }
+
     /// Enable the RF output (close the switch).
     pub fn switch_on(&self) {
         self.config.switch_device.on()
@@ -101,13 +118,90 @@ impl Ad9910<'_> {
 
     /// Single-tone output update, on the default profile.
     pub fn set_mu(&self, ftw: u32, pow: u16, asf: u16) -> Result<u16> {
-        // TODO: support tracking-phase updates.
         ad9910_pac::regs(self)
             .single_tone_profile7() // TODO: obey Config::profile.
             .write(|w| unsafe { w.asf().bits(asf).pow().bits(pow).ftw().bits(ftw) })?;
         self.cpld.pulse_io_update(8)?;
 
         Ok(pow)
+    }
+
+    pub fn set_mu_coherent(
+        &self,
+        ftw: u32,
+        pow: u16,
+        asf: u16,
+        ref_time_mu: i64,
+        io_update_delay_mu: i64,
+    ) -> Result<u16> {
+        rtio::at_mu(rtio::now_mu() & !7);
+        // Use write, not modify, to avoid reading back the register.
+        ad9910_pac::regs(self).cfr1().write(|w| {
+            w.sdio_input_only()
+                .set_bit()
+                .autoclear_phase_accumulator()
+                .set_bit()
+        })?;
+
+        let sysclk_per_mu = 1; // TODO: calculate this elsewhere.
+        let dt = (rtio::now_mu() as i32) - (ref_time_mu as i32);
+        let pow = (pow as i32) + ((dt * (ftw as i32) * sysclk_per_mu) >> 16);
+        let pow = (pow & 0xffff) as u16;
+
+        ad9910_pac::regs(self)
+            .single_tone_profile7()
+            .write(|w| unsafe { w.asf().bits(asf).pow().bits(pow).ftw().bits(ftw) })?;
+
+        rtio::delay_mu(io_update_delay_mu);
+        self.cpld.pulse_io_update(8)?;
+
+        rtio::at_mu(rtio::now_mu() & !7);
+        ad9910_pac::regs(self)
+            .cfr1()
+            .write(|w| w.sdio_input_only().set_bit())?;
+        Ok(pow)
+    }
+
+    fn set_sync(&self, sync_delay: u8, window: u8) -> Result<()> {
+        use ad9910_pac::regs::multichip_sync::SyncGeneratorPolarityA::RisingEdge;
+
+        ad9910_pac::regs(self).multichip_sync().write(|w| unsafe {
+            w.sync_validation_delay()
+                .bits(window)
+                .sync_receiver_enable()
+                .set_bit()
+                .sync_generator_enable()
+                .clear_bit()
+                .sync_generator_polarity()
+                .variant(RisingEdge)
+                .sync_state_preset_value()
+                .bits(0)
+                .output_sync_generator_delay()
+                .bits(0)
+                .input_sync_receiver_delay()
+                .bits(sync_delay)
+        })?;
+        Ok(())
+    }
+
+    fn clear_smp_err(&self) -> Result<()> {
+        ad9910_pac::regs(self)
+            .cfr2()
+            .write(|w| w.sync_timing_validation_disable().set_bit())?;
+        self.cpld.pulse_io_update(1_000)?;
+        rtio::delay_mu(10_000); // slack
+        unsafe {
+            ad9910_pac::regs(self).cfr2().write_with_zero(|w| {
+                w.enable_amplitude_scale_from_single_tone_profiles()
+                    .set_bit()
+                    .read_effective_ftw()
+                    .set_bit()
+                    .sync_timing_validation_disable()
+                    .clear_bit()
+            })?;
+        }
+        rtio::delay_mu(10_000); // slack
+        self.cpld.pulse_io_update(1_000)
     }
 }
 

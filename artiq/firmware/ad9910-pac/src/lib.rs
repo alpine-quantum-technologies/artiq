@@ -179,4 +179,63 @@ mod tests {
             .unwrap();
         assert_eq!(regs.cfr2().read().unwrap().bits(), Cfr2Spec::reset_value());
     }
+
+    #[test]
+    fn multichip_sync_default() {
+        let dev = Device::default();
+        let regs = Registers::on(&dev);
+
+        regs.multichip_sync()
+            .write(|w| w.sync_receiver_enable().set_bit())
+            .unwrap();
+        assert_eq!(regs.multichip_sync().read().unwrap().bits(), 0x8000000);
+    }
+
+    #[test]
+    fn multichip_sync_realistic() {
+        use crate::regs::multichip_sync::SyncGeneratorPolarityA::RisingEdge;
+
+        let dev = Device::default();
+        let regs = Registers::on(&dev);
+
+        let window = 2;
+        let sync_delay = 19;
+
+        regs.multichip_sync()
+            .write(|w| unsafe {
+                w.sync_validation_delay()
+                    .bits(window)
+                    .sync_receiver_enable()
+                    .set_bit()
+                    .sync_generator_enable()
+                    .clear_bit()
+                    .sync_generator_polarity()
+                    .variant(RisingEdge)
+                    .sync_state_preset_value()
+                    .bits(0)
+                    .output_sync_generator_delay()
+                    .bits(0)
+                    .input_sync_receiver_delay()
+                    .bits(sync_delay)
+            })
+            .unwrap();
+        assert_eq!(regs.multichip_sync().read().unwrap().bits(), 0x28000098);
+    }
+
+    #[test]
+    fn cfr1_autoclear() {
+        let dev = Device::default();
+        let regs = Registers::on(&dev);
+
+        regs.cfr1()
+            .write(|w| {
+                w.sdio_input_only()
+                    .set_bit()
+                    .autoclear_phase_accumulator()
+                    .set_bit()
+            })
+            .unwrap();
+
+        assert_eq!(regs.cfr1().read().unwrap().bits(), 0x2002);
+    }
 }

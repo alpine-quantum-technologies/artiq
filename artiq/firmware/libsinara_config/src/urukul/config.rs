@@ -106,3 +106,30 @@ fn bool_to_i32(value: bool) -> i32 {
         0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cfg_snapshot() {
+        let cfg = Config {
+            profile: 7,
+            io_update: false,
+            clk_sel: ClkSel::Mmcx,
+            sync_sel: SyncSel::Eem,
+            reset: false,
+            io_reset: false,
+            clk_div: ClkDiv::Default,
+        };
+
+        assert_eq!(cfg, 2098944.try_into().unwrap());
+        assert_eq!(
+            Config {
+                io_reset: true,
+                ..cfg
+            },
+            3147520.try_into().unwrap()
+        );
+    }
+}

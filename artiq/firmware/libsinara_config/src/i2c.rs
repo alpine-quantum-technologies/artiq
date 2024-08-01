@@ -1,7 +1,7 @@
 use core::fmt;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-#[derive(Debug, Eq, PartialEq, Clone, IntoPrimitive, TryFromPrimitive)]
+#[derive(Debug, PartialEq, Clone, Copy, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum KasliPort {
     Eem0 = 7,

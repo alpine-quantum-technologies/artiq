@@ -5,6 +5,7 @@ extern crate cslice;
 extern crate libc;
 extern crate unwind;
 
+extern crate ad9910_pac;
 extern crate board_artiq;
 extern crate board_misoc;
 extern crate dyld;

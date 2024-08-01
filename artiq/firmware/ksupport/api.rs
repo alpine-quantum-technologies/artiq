@@ -1,3 +1,5 @@
+use board_misoc::csr;
+
 macro_rules! api {
     ($i:ident) => ({
         extern { static $i: u8; }
@@ -145,6 +147,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /* proxified syscalls */
     api!(core_log),
     /* RTIO */
+    api!(now = csr::rtio::NOW_HI_ADDR as *const _),
     api!(now_mu = ::rtio::now_mu),
     api!(at_mu = ::rtio::at_mu),
     api!(delay_mu = ::rtio::delay_mu),
@@ -202,7 +205,10 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(urukul_write_coarse_attenuation = ::sinara::urukul_write_coarse_attenuation),
     api!(urukul_read_coarse_attenuation = ::sinara::urukul_read_coarse_attenuation),
     api!(urukul_channel_init = ::sinara::urukul_channel_init),
+    api!(urukul_channel_read_sync_data = ::sinara::urukul_channel_read_sync_data),
+    api!(urukul_channel_setup_sync = ::sinara::urukul_channel_setup_sync),
     api!(urukul_channel_rf_on = ::sinara::urukul_channel_rf_on),
     api!(urukul_channel_rf_off = ::sinara::urukul_channel_rf_off),
     api!(urukul_channel_set_mu = ::sinara::urukul_channel_set_mu),
+    api!(urukul_channel_set_mu_coherent = ::sinara::urukul_channel_set_mu_coherent),
 ];
