@@ -3,6 +3,7 @@ use core::convert::TryInto;
 #[cfg(not(has_rtio))]
 compile_error!("Need RTIO to use Sinara drivers");
 
+mod edge_counter;
 mod ttl;
 mod urukul;
 
@@ -36,6 +37,30 @@ pub extern "C" fn led_off(channel: usize) {
 
 pub extern "C" fn led_count() -> usize {
     PERIPHERALS.led.len()
+}
+
+pub extern "C" fn edge_counter_start_gate_rising(channel: usize) {
+    PERIPHERALS.edge_counter[channel].start_gate_rising()
+}
+
+pub extern "C" fn edge_counter_start_gate_falling(channel: usize) {
+    PERIPHERALS.edge_counter[channel].start_gate_falling()
+}
+
+pub extern "C" fn edge_counter_start_gate_both(channel: usize) {
+    PERIPHERALS.edge_counter[channel].start_gate_both()
+}
+
+pub extern "C" fn edge_counter_stop_gate(channel: usize) {
+    PERIPHERALS.edge_counter[channel].stop_gate()
+}
+
+pub extern "C" fn edge_counter_fetch_count(channel: usize) -> i32 {
+    PERIPHERALS.edge_counter[channel].fetch_count()
+}
+
+pub extern "C" fn edge_counter_count() -> usize {
+    PERIPHERALS.edge_counter.len()
 }
 
 pub extern "C" fn urukul_count() -> usize {
