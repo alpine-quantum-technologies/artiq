@@ -259,6 +259,12 @@ static mut DMA_RECORDER: DmaRecorder = DmaRecorder {
     buffer: [0; DMA_BUFFER_SIZE],
 };
 
+type RtioOutputFn = extern "C" fn(i32, i32);
+static mut RTIO_OUTPUT_FN: RtioOutputFn = rtio::output;
+
+type RtioOutputWideFn = extern "C" fn(i32, &CSlice<i32>);
+static mut RTIO_OUTPUT_WIDE_FN: RtioOutputWideFn = rtio::output_wide;
+
 fn dma_record_flush() {
     unsafe {
         send(&DmaRecordAppend(
@@ -269,13 +275,19 @@ fn dma_record_flush() {
 }
 
 extern "C-unwind" fn dma_record_start(name: &CSlice<u8>) {
-    let name = str::from_utf8(name.as_ref()).unwrap();
+    let name = match str::from_utf8(name.as_ref()) {
+        Ok(name) => name,
+        Err(_) => {
+            raise!("DMAError", "Invalid DMA record name")
+        }
+    };
 
     unsafe {
         if DMA_RECORDER.active {
             raise!("DMAError", "DMA is already recording")
         }
 
+        // Classic ARTIQ
         let library = LIBRARY.as_ref().unwrap();
         library
             .rebind(b"rtio_output", dma_record_output as *const () as u32)
@@ -286,6 +298,10 @@ extern "C-unwind" fn dma_record_start(name: &CSlice<u8>) {
                 dma_record_output_wide as *const () as u32,
             )
             .unwrap();
+
+        // For ksupport drivers.
+        RTIO_OUTPUT_FN = dma_record_output;
+        RTIO_OUTPUT_WIDE_FN = dma_record_output_wide;
 
         DMA_RECORDER.active = true;
         send(&DmaRecordStart(name));
@@ -300,6 +316,7 @@ extern "C-unwind" fn dma_record_stop(duration: i64, enable_ddma: bool) {
             raise!("DMAError", "DMA is not recording")
         }
 
+        // Classic ARTIQ
         let library = LIBRARY.as_ref().unwrap();
         library
             .rebind(b"rtio_output", rtio::output as *const () as u32)
@@ -307,6 +324,10 @@ extern "C-unwind" fn dma_record_stop(duration: i64, enable_ddma: bool) {
         library
             .rebind(b"rtio_output_wide", rtio::output_wide as *const () as u32)
             .unwrap();
+
+        // For ksupport drivers.
+        RTIO_OUTPUT_FN = rtio::output;
+        RTIO_OUTPUT_WIDE_FN = rtio::output_wide;
 
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {

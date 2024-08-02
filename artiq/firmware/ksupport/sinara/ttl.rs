@@ -33,14 +33,14 @@ impl TtlOut {
     }
 
     fn set_o(&self, o: bool) {
-        rtio::output(self.channel << 8, if o { 1 } else { 0 })
+        unsafe { crate::RTIO_OUTPUT_FN(self.channel << 8, if o { 1 } else { 0 }) }
     }
 }
 
 #[cfg_attr(not(has_sinara_ttl_clk_gen), allow(dead_code))]
 impl TtlClockGen {
     pub fn set_mu(&self, ftw: i32) {
-        rtio::output(self.channel << 8, ftw)
+        unsafe { crate::RTIO_OUTPUT_FN(self.channel << 8, ftw) }
     }
 
     pub fn stop(&self) {

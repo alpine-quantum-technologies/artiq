@@ -51,6 +51,6 @@ impl EdgeCounter {
     }
 
     fn set_config(&self, config: Config) {
-        rtio::output(self.channel << 8, config.bits());
+        unsafe { crate::RTIO_OUTPUT_FN(self.channel << 8, config.bits()) }
     }
 }
