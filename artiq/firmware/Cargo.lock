@@ -484,6 +484,7 @@ dependencies = [
  "num_enum",
  "proto_artiq",
  "riscv",
+ "rpc-data",
  "sinara_config",
  "unwind",
 ]
@@ -791,6 +792,10 @@ dependencies = [
  "lazy_static",
  "regex",
 ]
+
+[[package]]
+name = "rpc-data"
+version = "0.1.0"
 
 [[package]]
 name = "runtime"
