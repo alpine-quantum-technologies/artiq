@@ -13,6 +13,7 @@ extern crate eh;
 extern crate io;
 extern crate proto_artiq;
 extern crate riscv;
+extern crate rpc_data;
 extern crate sinara_config;
 
 #[macro_use(bitflags)]
@@ -117,6 +118,7 @@ macro_rules! raise {
 mod api;
 mod eh_artiq;
 mod nrt_bus;
+mod rpc;
 mod rtio;
 mod sinara;
 mod spi2;

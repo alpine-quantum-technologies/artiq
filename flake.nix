@@ -297,6 +297,8 @@
             cargo fmt --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- --check
             echo 'Check ad9910-pac format'
             cargo fmt --manifest-path ${self}/artiq/firmware/ad9910-pac/Cargo.toml -- --check
+            echo 'Check rpc-data format'
+            cargo fmt --manifest-path ${self}/artiq/firmware/librpc_data/Cargo.toml -- --check
 
             echo 'Lint ddb_parser'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml  -- -Dwarnings
@@ -306,6 +308,8 @@
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml -- -Dwarnings
             echo 'Lint ad9910-pac'
             cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ad9910-pac/Cargo.toml -- -Dwarnings
+            echo 'Lint rpc-data'
+            cargo clippy --target-dir ./cargo --manifest-path ${self}/artiq/firmware/librpc_data/Cargo.toml -- -Dwarnings
 
             echo 'Test ddb_parser'
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ddb_parser/Cargo.toml
@@ -313,6 +317,8 @@
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/libsinara_config/Cargo.toml
             echo 'Test ad9910-pac'
             cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/ad9910-pac/Cargo.toml
+            echo 'Test rpc-data'
+            cargo test --target-dir ./cargo --manifest-path ${self}/artiq/firmware/librpc_data/Cargo.toml
             '';
 
           installPhase =

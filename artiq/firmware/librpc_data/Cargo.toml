@@ -1,0 +1,9 @@
+[package]
+name = "rpc-data"
+description = "Shared RPC data."
+authors = ["Alpine Quantum Technologies GmbH <info@aqt.eu>"]
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
