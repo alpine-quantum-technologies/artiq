@@ -6,6 +6,7 @@ use std::{
 };
 
 mod ddb;
+mod edge_counter;
 mod led;
 mod ttl;
 mod urukul;
@@ -25,6 +26,7 @@ pub fn generate_peripherals_code() {
     let code = vec![
         led::emit_code(&ddb),
         ttl::emit_code(&ddb),
+        edge_counter::emit_code(&ddb),
         urukul::emit_code(&ddb, core),
     ];
 

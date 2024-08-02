@@ -199,6 +199,13 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(led_count = ::sinara::led_count),
     api!(led_on = ::sinara::led_on),
     api!(led_off = ::sinara::led_off),
+    // Edge counter
+    api!(edge_counter_start_gate_rising = ::sinara::edge_counter_start_gate_rising),
+    api!(edge_counter_start_gate_falling = ::sinara::edge_counter_start_gate_falling),
+    api!(edge_counter_start_gate_both = ::sinara::edge_counter_start_gate_both),
+    api!(edge_counter_stop_gate = ::sinara::edge_counter_stop_gate),
+    api!(edge_counter_fetch_count = ::sinara::edge_counter_fetch_count),
+    api!(edge_counter_count = ::sinara::edge_counter_count),
     // Urukul
     api!(urukul_init = ::sinara::urukul_init),
     api!(urukul_count = ::sinara::urukul_count),
