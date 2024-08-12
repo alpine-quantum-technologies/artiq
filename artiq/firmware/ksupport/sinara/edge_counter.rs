@@ -11,23 +11,15 @@ pub struct EdgeCounter {
 #[cfg_attr(not(has_sinara_edge_counter), allow(dead_code))]
 impl EdgeCounter {
     /// Close the counter gate.
+    #[inline]
     pub fn stop_gate(&self) {
         self.set_config(Config::SendCountEvent);
     }
 
     /// Open the counter gate, count rising edges.
+    #[inline]
     pub fn start_gate_rising(&self) {
         self.set_config(Config::CountRising | Config::ResetToZero);
-    }
-
-    /// Open the counter gate, count falling edges.
-    pub fn start_gate_falling(&self) {
-        self.set_config(Config::CountFalling | Config::ResetToZero);
-    }
-
-    /// Open the counter gate, count both rising and falling edges.
-    pub fn start_gate_both(&self) {
-        self.set_config(Config::CountRising | Config::CountFalling | Config::ResetToZero);
     }
 
     /// Wait for and return count total from previously requested input event.
@@ -39,6 +31,7 @@ impl EdgeCounter {
     /// This function blocks until a result becomes available.
     ///
     /// Returns -1 if the counter overflowed.
+    #[inline]
     pub fn fetch_count(&self) -> i32 {
         let counter_max = (1 << (self.gateware_width - 1)) - 1;
 
@@ -50,7 +43,8 @@ impl EdgeCounter {
         }
     }
 
+    #[inline(always)]
     fn set_config(&self, config: Config) {
-        rtio::output(self.channel << 8, config.bits());
+        unsafe { crate::RTIO_OUTPUT_FN(self.channel << 8, config.bits()) }
     }
 }

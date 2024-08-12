@@ -107,11 +107,13 @@ impl Ad9910<'_> {
     }
 
     /// Enable the RF output (close the switch).
+    #[inline(always)]
     pub fn switch_on(&self) {
         self.config.switch_device.on()
     }
 
     /// Disable the RF output (open the switch).
+    #[inline(always)]
     pub fn switch_off(&self) {
         self.config.switch_device.off()
     }

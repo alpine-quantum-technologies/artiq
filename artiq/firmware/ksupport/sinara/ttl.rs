@@ -18,32 +18,33 @@ impl TtlOut {
     #[allow(dead_code)]
     pub fn output(&self) {}
 
+    #[inline]
     pub fn on(&self) {
         self.set_o(true)
     }
 
+    #[inline]
     pub fn off(&self) {
         self.set_o(false)
     }
 
+    #[inline]
     pub fn pulse_mu(&self, duration: i64) {
         self.on();
         rtio::delay_mu(duration);
         self.off();
     }
 
+    #[inline(always)]
     fn set_o(&self, o: bool) {
-        rtio::output(self.channel << 8, if o { 1 } else { 0 })
+        unsafe { crate::RTIO_OUTPUT_FN(self.channel << 8, if o { 1 } else { 0 }) }
     }
 }
 
 #[cfg_attr(not(has_sinara_ttl_clk_gen), allow(dead_code))]
 impl TtlClockGen {
+    #[inline(always)]
     pub fn set_mu(&self, ftw: i32) {
-        rtio::output(self.channel << 8, ftw)
-    }
-
-    pub fn stop(&self) {
-        self.set_mu(0)
+        unsafe { crate::RTIO_OUTPUT_FN(self.channel << 8, ftw) }
     }
 }

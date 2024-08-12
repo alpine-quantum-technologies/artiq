@@ -63,10 +63,15 @@ impl Bus {
             return Err(Error::InvalidClockDivider(div));
         }
 
-        rtio::output(
-            (self.channel << 8) | Self::CONFIG_ADDR,
-            (flags.bits() as i32) | ((length - 1) << 8) | ((div - 2) << 16) | ((cs as i32) << 24),
-        );
+        unsafe {
+            crate::RTIO_OUTPUT_FN(
+                (self.channel << 8) | Self::CONFIG_ADDR,
+                (flags.bits() as i32)
+                    | ((length - 1) << 8)
+                    | ((div - 2) << 16)
+                    | ((cs as i32) << 24),
+            );
+        }
 
         rtio::delay_mu(self.ref_period_mu);
 
@@ -84,7 +89,7 @@ impl ConfiguredBus {
     ///
     /// The timeline cursor is advanced by the transfer duration.
     pub fn write(&self, data: i32) -> &Self {
-        rtio::output((self.channel << 8) | Bus::DATA_ADDR, data);
+        unsafe { crate::RTIO_OUTPUT_FN((self.channel << 8) | Bus::DATA_ADDR, data) };
         rtio::delay_mu(self.xfer_duration_mu);
         self
     }

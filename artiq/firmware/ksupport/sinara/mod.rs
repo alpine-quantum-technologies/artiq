@@ -43,14 +43,6 @@ pub extern "C" fn edge_counter_start_gate_rising(channel: usize) {
     PERIPHERALS.edge_counter[channel].start_gate_rising()
 }
 
-pub extern "C" fn edge_counter_start_gate_falling(channel: usize) {
-    PERIPHERALS.edge_counter[channel].start_gate_falling()
-}
-
-pub extern "C" fn edge_counter_start_gate_both(channel: usize) {
-    PERIPHERALS.edge_counter[channel].start_gate_both()
-}
-
 pub extern "C" fn edge_counter_stop_gate(channel: usize) {
     PERIPHERALS.edge_counter[channel].stop_gate()
 }
