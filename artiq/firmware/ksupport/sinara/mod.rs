@@ -4,6 +4,7 @@ use core::convert::TryInto;
 compile_error!("Need RTIO to use Sinara drivers");
 
 mod edge_counter;
+mod phaser;
 mod ttl;
 mod urukul;
 
@@ -167,4 +168,16 @@ pub extern "C" fn urukul_channel_set_mu_coherent(
     } else {
         false
     }
+}
+
+pub extern "C" fn phaser_init() {
+    use self::phaser::Phaser;
+
+    let dev = Phaser {
+        channel_base: 0x13,
+        miso_delay: 1,
+        sync_dly: 0,
+        tune_fifo_offset: true,
+    };
+    dev.init(true);
 }

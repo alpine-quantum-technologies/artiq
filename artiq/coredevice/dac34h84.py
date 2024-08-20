@@ -275,3 +275,7 @@ class DAC34H84:
             (0x2f << 16) | (self.grp_delayc << 8) | (self.grp_delayd << 0))
         mmap.append((0x30 << 16) | self.sifdac)
         return mmap
+
+
+if __name__ == "__main__":
+    print(DAC34H84().get_mmap())
