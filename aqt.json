@@ -24,6 +24,13 @@
             ],
 	    "synchronization": true,
 	    "clk_sel": 2
-        }
+        },
+	{
+	    "type": "phaser",
+	    "hw_rev": "v1.1",
+	    "ports": [
+		3
+	    ]
+	}
     ]
 }

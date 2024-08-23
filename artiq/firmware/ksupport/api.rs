@@ -216,6 +216,8 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(urukul_channel_rf_off = ::sinara::urukul_channel_rf_off),
     api!(urukul_channel_set_mu = ::sinara::urukul_channel_set_mu),
     api!(urukul_channel_set_mu_coherent = ::sinara::urukul_channel_set_mu_coherent),
+    // Phaser
+    api!(phaser_init = ::sinara::phaser_init),
     // Result
     api!(result_store_i32 = ::rpc::store_result_i32),
 ];
