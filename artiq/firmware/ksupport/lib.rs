@@ -227,6 +227,92 @@ extern fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
     })
 }
 
+#[derive(Debug)]
+struct InputDataMock {
+    channel: i32,
+    data: heapless::Vec<i32, heapless::consts::U128>,
+    current: usize,
+    consume_events: bool,
+}
+
+static mut MOCK_INPUT_DATA: heapless::Vec<InputDataMock, heapless::consts::U16> = heapless::Vec(heapless::i::Vec::new());
+
+/// Register mock RTIO input data.
+///
+/// Repeated calls for the same channel replace exisiting
+/// mock data for that channel.
+///
+/// The mock `data` is handled as a cyclic buffer.
+///
+/// For a given kernel run, mock data can be registered
+/// for up to 16 channels.
+///
+/// # Arguments
+///
+/// * `channel` - RTIO channel to mock input data for.
+/// * `data` - mock data. The maximum data length is 128. Empty data removes the
+///   mock for the target channel.
+/// * `consume_events` - if `true`, also consume the underlying event. Block if
+///   no such event exists.
+extern fn mock_input_data(channel: i32, data: &CSlice<i32>, consume_events: bool) {
+    let data = if let Ok(data) = heapless::Vec::from_slice(data.as_ref()) {
+	data
+    } else {
+	raise!("RuntimeError", "Mock data too long");
+    };
+
+    unsafe {
+	let index = MOCK_INPUT_DATA.iter().position(|entry| entry.channel == channel);
+	match (index, data.len()) {
+	    (None, len) if len > 0 => {
+		// new entry
+		if MOCK_INPUT_DATA.push(InputDataMock {
+		    channel,
+		    data,
+		    current: 0,
+		    consume_events,
+		}).is_err() {
+		    raise!("RuntimeError", "Cannot add mock data entry");
+		}
+	    },
+	    (Some(index), len) if len == 0 => {
+		// empty data: remove entry
+		MOCK_INPUT_DATA.swap_remove(index);
+	    }
+	    (Some(index), _) => {
+		// non-empty data: update entry
+		MOCK_INPUT_DATA.swap_remove(index);
+		MOCK_INPUT_DATA.push(InputDataMock {
+		    channel,
+		    data,
+		    current: 0,
+		    consume_events,
+		}).unwrap();
+	    }
+	    _ => (), // new entry, empty data: ignore
+	}
+    }
+}
+
+/// Replacement for `rtio::input_data` that serves mock data for the target channel
+/// if any exists.
+extern fn rtio_input_data(channel: i32) -> i32 {
+    unsafe {
+	let item = MOCK_INPUT_DATA.iter_mut().find(|entry| entry.channel == channel);
+	match item {
+	    None => rtio::input_data(channel),
+	    Some(desc) => {
+		let data = desc.data[desc.current];
+		desc.current = (desc.current + 1) % desc.data.len();
+		if desc.consume_events {
+		    let _ = rtio::input_data(channel); // discard the value
+		}
+		data
+	    }
+	}
+    }
+}
+
 const DMA_BUFFER_SIZE: usize = 64 * 1024;
 
 struct DmaRecorder {
