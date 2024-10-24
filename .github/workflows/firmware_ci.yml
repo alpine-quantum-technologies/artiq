@@ -1,0 +1,25 @@
+name: Build firmware
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - aqt-prod
+jobs:
+  build:
+    name: Build firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+      - name: Build Kasli dummy firmware
+        run: |
+          nix build --accept-flake-config .#artiq-firmware-kasli-dummy
+      - name: Store build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kasli-dummy-firmware
+          path: |
+            result/bootloader.bin
+            result/runtime.elf
+            result/runtime.fbi
