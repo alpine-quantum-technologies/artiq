@@ -172,7 +172,7 @@ class Phaser:
                         for ch, trf in enumerate([trf0, trf1])]
 
     @kernel
-    def init(self, debug=False):
+    def init(self, debug=False, blind=False):
         """Initialize the board.
 
         Verifies board and chip presence, resets components, performs
@@ -255,15 +255,16 @@ class Phaser:
         # FPGA+board+DAC skews. There is plenty of margin (>= 250 ps
         # either side) and no need to tune at runtime.
         # Parity provides another level of safety.
-        for i in range(len(patterns)):
-            delay(.5*ms)
-            errors = self.dac_iotest(patterns[i])
-            if errors:
-                raise ValueError("DAC iotest failure")
+        if not blind:
+            for i in range(len(patterns)):
+                delay(2*ms)
+                errors = self.dac_iotest(patterns[i])
+                if errors:
+                    raise ValueError("DAC iotest failure")
 
         delay(2*ms)  # let it settle
         lvolt = self.dac_read(0x18) & 7
-        delay(.1*ms)
+        delay(2*ms)
         if lvolt < 2 or lvolt > 5:
             raise ValueError("DAC PLL lock failed, check clocking")
 
@@ -279,7 +280,7 @@ class Phaser:
         self.clear_dac_alarms()
         delay(2*ms)  # let it run a bit
         alarms = self.get_dac_alarms()
-        delay(.1*ms)  # slack
+        delay(2*ms)  # slack
         if alarms & ~0x0040:  # ignore PLL alarms (see DS)
             if debug:
                 print("alarms:", alarms)
