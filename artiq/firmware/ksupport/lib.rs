@@ -237,6 +237,11 @@ struct InputDataMock {
 
 static mut MOCK_INPUT_DATA: heapless::Vec<InputDataMock, heapless::consts::U16> = heapless::Vec(heapless::i::Vec::new());
 
+/// Clear all mock RTIO input data for all channels.
+extern fn clear_mock_input_data() {
+    unsafe { MOCK_INPUT_DATA.clear(); }
+}
+
 /// Register mock RTIO input data.
 ///
 /// Repeated calls for the same channel replace exisiting
