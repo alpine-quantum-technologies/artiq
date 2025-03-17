@@ -297,6 +297,56 @@
           dontFixup = true;
         };
 
+      makeKasliFirmwarePackage = { variant }:
+        pkgs.stdenv.mkDerivation {
+          name = "artiq-firmware-kasli-${variant}";
+          phases = [ "buildPhase" "installPhase" ];
+          cargoDeps = rustPlatform.importCargoLock {
+            lockFile = ./artiq/firmware/Cargo.lock;
+            outputHashes = {
+              "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
+              "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
+            };
+          };
+
+          nativeBuildInputs = [
+            (pkgs.python3.withPackages(ps: [
+              ps.jsonschema
+              ps.packaging
+              migen
+              misoc
+              artiq
+            ]))
+            rust
+            rustPlatform.cargoSetupHook
+          ] ++ (with pkgs.llvmPackages_15; [
+            clang-unwrapped
+            bintools-unwrapped
+          ]);
+
+          buildPhase =
+            ''
+            ln -s ${self}/artiq/firmware/Cargo.lock .
+            cargoSetupPostUnpackHook
+            cargoSetupPostPatchHook
+            python -m artiq.gateware.targets.kasli --no-compile-gateware ${self}/systems/${variant}.json
+            '';
+
+          installPhase =
+            ''
+            mkdir $out
+            if [ -e artiq_kasli/${variant}/software/bootloader/bootloader.bin ]
+            then cp artiq_kasli/${variant}/software/bootloader/bootloader.bin $out
+            fi
+            if [ -e artiq_kasli/${variant}/software/runtime ]
+            then cp artiq_kasli/${variant}/software/runtime/runtime.{elf,fbi} $out
+            else cp artiq_kasli/${variant}/software/satman/satman.{elf,fbi} $out
+            fi
+            '';
+
+          dontFixup = true;
+        };
+
       openocd-bscanspi-f = pkgs: let
         bscan_spi_bitstreams-pkg = pkgs.stdenv.mkDerivation {
           name = "bscan_spi_bitstreams";
@@ -351,6 +401,7 @@
           target = "efc";
           variant = "shuttler";
         };
+        artiq-firmware-kasli-dummy = makeKasliFirmwarePackage { variant = "dummy"; };
         inherit latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";

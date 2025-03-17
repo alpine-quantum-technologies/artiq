@@ -1,0 +1,9 @@
+{
+    "_description": "Dummy system",
+    "target": "kasli",
+    "variant": "dummy",
+    "min_artiq_version": "7.0",
+    "hw_rev": "v2.0",
+    "base": "standalone",
+    "peripherals": []
+}
