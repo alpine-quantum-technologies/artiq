@@ -446,7 +446,7 @@
         };
       };
 
-      inherit qtPaths makeArtiqBoardPackage openocd-bscanspi-f;
+      inherit qtPaths makeArtiqBoardPackage makeKasliFirmwarePackage openocd-bscanspi-f;
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
