@@ -297,7 +297,7 @@
           dontFixup = true;
         };
 
-      makeKasliFirmwarePackage = { variant }:
+      makeKasliFirmwarePackage = { variant, buildCommand ? "python -m artiq.gateware.targets.kasli --no-compile-gateware ${self}/systems/${variant}.json" }:
         pkgs.stdenv.mkDerivation {
           name = "artiq-firmware-kasli-${variant}";
           phases = [ "buildPhase" "installPhase" ];
@@ -329,7 +329,7 @@
             ln -s ${self}/artiq/firmware/Cargo.lock .
             cargoSetupPostUnpackHook
             cargoSetupPostPatchHook
-            python -m artiq.gateware.targets.kasli --no-compile-gateware ${self}/systems/${variant}.json
+            ${buildCommand}
             '';
 
           installPhase =
