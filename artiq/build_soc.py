@@ -48,8 +48,8 @@ class ReprogrammableIdentifier(Module, AutoCSR):
 def add_identifier(soc, *args, gateware_identifier_str=None, **kwargs):
     if hasattr(soc, "identifier"):
         raise ValueError
-    identifier_str = get_identifier_string(soc, *args, **kwargs)
-    soc.submodules.identifier = ReprogrammableIdentifier(gateware_identifier_str or identifier_str)
+    identifier_str = gateware_identifier_str or get_identifier_string(soc, *args, **kwargs)
+    soc.submodules.identifier = ReprogrammableIdentifier(identifier_str)
     soc.config["IDENTIFIER_STR"] = identifier_str
 
 
