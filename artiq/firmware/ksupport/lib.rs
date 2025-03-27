@@ -230,7 +230,7 @@ extern fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
 #[derive(Debug)]
 struct InputDataMock {
     channel: i32,
-    data: heapless::Vec<i32, heapless::consts::U256>,
+    data: heapless::Vec<i32, heapless::consts::U128>,
     current: usize,
     consume_events: bool,
 }
