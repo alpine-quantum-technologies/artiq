@@ -66,8 +66,9 @@ def main():
         object_map, kernel_library, _, _ = \
             core.compile(exp.run, [exp_inst], {},
                          attribute_writeback=False, print_as_rpc=False)
-    except CompileError as error:
-        return
+    except CompileError:
+        # Error is already printed.
+        sys.exit(1)
     finally:
         device_mgr.close_devices()
 
