@@ -9,7 +9,6 @@ import os, re, linecache, inspect, textwrap, types as pytypes, numpy, json
 from typing import Any, Callable, Optional
 from dataclasses import dataclass
 from collections import OrderedDict, defaultdict
-from unittest.mock import MagicMock
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
 from pythonparser import lexer as source_lexer, parser as source_parser
