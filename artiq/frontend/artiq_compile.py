@@ -29,6 +29,8 @@ def get_argparser():
 
     parser.add_argument("-c", "--class-name", default=None,
                         help="name of the class to compile")
+    parser.add_argument("--allow-rpcs", default=False, action="store_true",
+                        help="produce a kernel library even if the compiled class contains RPCs")
     parser.add_argument("--rpc-info", default=None,
                         help="RPC information output (as JSON)")
 
@@ -91,7 +93,7 @@ def main():
     finally:
         dataset_db.close_db()
 
-    if object_map.has_rpc():
+    if not args.allow_rpcs and object_map.has_rpc():
         raise ValueError("Experiment must not use RPC")
 
     if args.rpc_info is not None:
