@@ -24,7 +24,7 @@ def get_argparser():
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
-    parser.add_argument("--dataset-db", default="dataset_db.pyon",
+    parser.add_argument("--dataset-db", default="dataset_db.mdb",
                         help="dataset file (default: '%(default)s')")
     parser.add_argument("--allow-rpcs", default=False, action="store_true",
                         help="produce a kernel library even if the compiled class contains RPCs")
