@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, io, tarfile, logging, argparse
+import os, sys, io, json, tarfile, logging, argparse
 
 from sipyco import common_args
 
@@ -29,6 +29,8 @@ def get_argparser():
 
     parser.add_argument("-c", "--class-name", default=None,
                         help="name of the class to compile")
+    parser.add_argument("--rpc-info", default=None,
+                        help="RPC information output (as JSON)")
 
     parser.add_argument("-o", "--output", default=None,
                         help="output file")
