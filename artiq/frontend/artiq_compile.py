@@ -92,6 +92,13 @@ def main():
     if object_map.has_rpc():
         raise ValueError("Experiment must not use RPC")
 
+    if args.rpc_info is not None:
+        info = [
+            rpc.to_dict() for rpc in object_map.rpc_info()
+        ]
+        with (sys.stdout if args.rpc_info == "-" else open(args.rpc_info, "w")) as fp:
+            print(json.dumps({"rpcs": info}, indent=4), file=fp, flush=True)
+
     output = args.output
 
     if not subkernels:
