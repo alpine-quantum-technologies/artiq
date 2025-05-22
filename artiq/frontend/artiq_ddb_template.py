@@ -542,15 +542,18 @@ class PeripheralManager:
         return 3
 
     def process_grabber(self, rtio_offset, peripheral):
-        self.gen("""
+        self.gen(
+            """
             device_db["{name}"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.grabber",
                 "class": "Grabber",
-                "arguments": {{"channel_base": 0x{channel:06x}}}
+                "arguments": {{"channel_base": 0x{channel:06x}, "roi_engine_count": {roi_count}}}
             }}""",
             name=self.get_name("grabber"),
-            channel=rtio_offset)
+            channel=rtio_offset,
+            roi_count=peripheral["roi_engine_count"],
+        )
         return 2
 
     def process_fastino(self, rtio_offset, peripheral):
