@@ -15,7 +15,7 @@ class Grabber:
     """Driver for the Grabber camera interface."""
     kernel_invariants = {"core", "channel_base", "sentinel"}
 
-    def __init__(self, dmgr, channel_base, res_width=12, count_shift=0,
+    def __init__(self, dmgr, channel_base, roi_engine_count, res_width=12, count_shift=0,
                  core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel_base = channel_base
