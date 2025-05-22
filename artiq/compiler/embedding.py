@@ -6,7 +6,9 @@ annotated as ``@kernel`` when they are referenced.
 """
 
 import typing
-import os, re, linecache, inspect, textwrap, types as pytypes, numpy
+import os, re, linecache, inspect, textwrap, types as pytypes, numpy, json
+from typing import Any, Callable, Optional
+from dataclasses import dataclass
 from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
@@ -14,10 +16,13 @@ from pythonparser import lexer as source_lexer, parser as source_parser
 
 from Levenshtein import ratio as similarity, jaro_winkler
 
+from typing_extensions import Self
+
 from ..language import core as language_core
 from . import types, builtins, asttyped, math_fns, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, TypedtreePrinter
 from .transforms.asttyped_rewriter import LocalExtractor
+from .ir import rpc_tag
 
 try:
     # From numpy=1.25.0 dispatching for `__array_function__` is done via
@@ -45,6 +50,99 @@ class SpecializedFunction:
 
     def __hash__(self):
         return hash((self.instance_type, self.host_function))
+
+@dataclass
+class RpcInfo:
+    """Information on a RPC."""
+
+    service_id: int
+    """Identifier of the service."""
+
+    code: Callable[..., Any]
+    """The called function, as Python function."""
+
+    arg_types: list[str]
+    """Argument types, as RPC tags."""
+
+    return_type: str
+    """Return type, as RPC tag."""
+
+    is_async: bool
+    """Whether the call is asynchronous."""
+
+    is_portable: bool
+    """Whether the implementation is portable (host and coredevice)."""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "service_id": self.service_id,
+            "name": self.code.__name__,
+            "is_async": self.is_async,
+            "is_portable": self.is_portable,
+            "args": self.arg_types,
+            "return": self.return_type,
+        }
+
+    @classmethod
+    def new(cls, *, service_id: int, code: Callable[..., Any]) -> Self:
+        """Derive detailed information from the data in the embedding map."""
+        sig = inspect.signature(code)
+
+        embedding_info = getattr(
+            code,
+            "artiq_embedded",
+            language_core._ARTIQEmbeddedInfo(
+                core_name=None,
+                portable=False,
+                function=None,
+                syscall=None,
+                forbidden=False,
+                flags=set()
+            )
+        )
+
+        is_async = "async" in embedding_info.flags
+
+        if sig.return_annotation is inspect._empty:
+            return_type = None
+        else:
+            return_type = sig.return_annotation
+
+        if is_async and return_type is not None:
+            msg = f"Async RPC ({service_id=}) has non-None return type {return_type}."
+            raise ValueError(msg)
+
+        def _rpc_tag(name, ty) -> str:
+            if name == "self":
+                return "O"
+
+            if ty is None:
+                return "n"
+            
+            if ty is inspect._empty:
+                # FIXME: this is more restrictive than the compiler
+                # accepts because there's no type inference.
+                msg = f"Missing annotation for parameter {name} in RPC {code.__name__}"
+                raise ValueError(msg)
+
+            tag = rpc_tag(ty, lambda _: None)
+
+            if tag is None:
+                msg = f"Failed to determine tag for parameter {name} in RPC {code.__name__}"
+                raise ValueError(msg)
+
+            return tag.decode()
+
+        arg_types = [_rpc_tag(name, p.annotation) for name, p in sig.parameters.items()]
+
+        return cls(
+            service_id,
+            code,
+            arg_types=arg_types,
+            return_type=_rpc_tag("return", return_type),
+            is_async=is_async,
+            is_portable=embedding_info.portable
+        )
 
 
 class SubkernelMessageType:
@@ -261,6 +359,14 @@ class EmbeddingMap:
                     (not hasattr(x, "artiq_embedded") or x.artiq_embedded.destination is None),
                 self.object_forward_map.values()
             ))
+
+    def rpc_info(self) -> list[RpcInfo]:
+        """List RPCs."""
+        return [
+            RpcInfo.new(service_id=service_id, code=fn)
+            for service_id, fn in self.object_forward_map.items()
+            if inspect.isfunction(fn) or inspect.ismethod(fn)
+        ]
 
 
 class ASTSynthesizer:

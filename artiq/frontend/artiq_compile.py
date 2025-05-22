@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, io, tarfile, logging, argparse
+import os, sys, io, json, tarfile, logging, argparse
 
 from sipyco import common_args
 
@@ -26,10 +26,13 @@ def get_argparser():
                         help="device database file (default: '%(default)s')")
     parser.add_argument("--dataset-db", default="dataset_db.mdb",
                         help="dataset file (default: '%(default)s')")
+    parser.add_argument("--allow-rpcs", default=False, action="store_true",
+                        help="produce a kernel library even if the compiled class contains RPCs")
+    parser.add_argument("--rpc-info", default=None,
+                        help="RPC information output (as JSON)")
 
     parser.add_argument("-c", "--class-name", default=None,
                         help="name of the class to compile")
-
     parser.add_argument("-o", "--output", default=None,
                         help="output file")
     parser.add_argument("file", metavar="FILE",
@@ -89,8 +92,15 @@ def main():
     finally:
         dataset_db.close_db()
 
-    if object_map.has_rpc():
+    if not args.allow_rpcs and object_map.has_rpc():
         raise ValueError("Experiment must not use RPC")
+
+    if args.rpc_info is not None:
+        info = [
+            rpc.to_dict() for rpc in object_map.rpc_info()
+        ]
+        with (sys.stdout if args.rpc_info == "-" else open(args.rpc_info, "w")) as fp:
+            print(json.dumps({"rpcs": info}, indent=4), file=fp, flush=True)
 
     output = args.output
 

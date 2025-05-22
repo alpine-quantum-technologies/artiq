@@ -13,7 +13,7 @@ from artiq.language.units import *
 
 from artiq.compiler.module import Module
 from artiq.compiler.embedding import Stitcher
-from artiq.compiler.targets import RV32IMATarget, RV32GTarget, CortexA9Target
+from artiq.compiler.targets import RV32IMATarget, RV32GTarget, CortexA9Target, X8664HostTarget
 
 from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 # Import for side effects (creating the exception classes).
@@ -100,6 +100,16 @@ class Core:
         self.ref_multiplier = ref_multiplier
         self.satellite_cpu_targets = satellite_cpu_targets
         self.target_cls = get_target_cls(target)
+        if target == "rv32g":
+            self.target_cls = RV32GTarget
+        elif target == "rv32ima":
+            self.target_cls = RV32IMATarget
+        elif target == "cortexa9":
+            self.target_cls = CortexA9Target
+        elif target == "x86_64-host":
+            self.target_cls = X8664HostTarget
+        else:
+            raise ValueError("Unsupported target")
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()

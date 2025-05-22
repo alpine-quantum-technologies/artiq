@@ -94,6 +94,8 @@ class Target:
     tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"
 
+    use_kernel_linker_script = True
+
     def __init__(self, subkernel_id=None):
         self.llcontext = ll.Context()
         self.subkernel_id = subkernel_id
@@ -187,7 +189,11 @@ class Target:
         """Link the relocatable objects into a shared library for this target."""
         with RunTool([self.tool_ld, "-shared", "--eh-frame-hdr"] +
                      self.additional_linker_options +
-                     ["-T" + os.path.join(os.path.dirname(__file__), "kernel.ld")] +
+                     (
+                         ["-T" + os.path.join(os.path.dirname(__file__), "kernel.ld")]
+                         if self.use_kernel_linker_script
+                         else []
+                     ) +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
                      ["-x"] +
                      ["-o", "{output}"],
@@ -307,3 +313,15 @@ class CortexA9Target(Target):
     tool_strip = "llvm-strip"
     tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"
+
+class X8664HostTarget(Target):
+    """Compile for a x86_64 host machine."""
+    triple = "x86_64-unknown-none-elf"
+    data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+    features = ["soft-float"]
+    additional_linker_options = ["--gc-sections"]
+    print_function = "core_log"
+    now_pinning = False
+
+    # Build for the host machine, not for the coredevice's kernel CPU.
+    use_kernel_linker_script = False
