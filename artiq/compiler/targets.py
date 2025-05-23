@@ -314,7 +314,7 @@ class X8664HostTarget(Target):
     """Compile for a x86_64 host machine."""
     triple = "x86_64-unknown-none-elf"
     data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-    features = ["soft-float"]
+    features = []
     additional_linker_options = ["--gc-sections"]
     print_function = "core_log"
     now_pinning = False
