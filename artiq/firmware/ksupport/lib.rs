@@ -23,6 +23,8 @@ use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
 use board_misoc::csr;
 use riscv::register::{mcause, mepc, mtval};
+use rtio::TimestampedData;
+
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
