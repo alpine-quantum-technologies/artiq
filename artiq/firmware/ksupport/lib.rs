@@ -332,9 +332,9 @@ extern fn rtio_input_timestamped_data(timeout: i64, channel: i32) -> Timestamped
 		    let _ = rtio::input_timestamped_data(timeout, channel); // discard the value
 		}
 		TimestampedData {
-            timestamp: 0,
-            data: data as i32
-        }
+	            timestamp: 0,
+        	    data: data as i32
+        	}
 	    }
 	}
     }
