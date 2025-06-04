@@ -23,6 +23,8 @@ use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
 use board_misoc::csr;
 use riscv::register::{mcause, mepc, mtval};
+use rtio::TimestampedData;
+
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -311,6 +313,28 @@ extern fn rtio_input_data(channel: i32) -> i32 {
 		    let _ = rtio::input_data(channel); // discard the value
 		}
 		data
+	    }
+	}
+    }
+}
+
+/// Replacement for `rtio::input_timestamped_data` that serves mock data for the target channel
+/// if any exists. Does not attempt to mock the timestamp if mocked, always returns 0.
+extern fn rtio_input_timestamped_data(timeout: i64, channel: i32) -> TimestampedData {
+    unsafe {
+	let item = MOCK_INPUT_DATA.iter_mut().find(|entry| entry.channel == channel);
+	match item {
+	    None => rtio::input_timestamped_data(timeout, channel),
+	    Some(desc) => {
+		let data = desc.data[desc.current];
+		desc.current = (desc.current + 1) % desc.data.len();
+		if desc.consume_events {
+		    let _ = rtio::input_timestamped_data(timeout, channel); // discard the value
+		}
+		TimestampedData {
+	            timestamp: 0,
+        	    data: data as i32
+        	}
 	    }
 	}
     }

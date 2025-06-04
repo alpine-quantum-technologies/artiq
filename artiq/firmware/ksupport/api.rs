@@ -151,7 +151,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(rtio_input_timestamp = ::rtio::input_timestamp),
     api!(mock_input_data = ::mock_input_data),
     api!(rtio_input_data = ::rtio_input_data),
-    api!(rtio_input_timestamped_data = ::rtio::input_timestamped_data),
+    api!(rtio_input_timestamped_data = ::rtio_input_timestamped_data),
 
     api!(dma_record_start = ::dma_record_start),
     api!(dma_record_stop = ::dma_record_stop),

@@ -1,7 +1,7 @@
 #[repr(C)]
 pub struct TimestampedData {
-    timestamp: i64,
-    data: i32,
+    pub timestamp: i64,
+    pub data: i32,
 }
 
 #[cfg(has_rtio)]
