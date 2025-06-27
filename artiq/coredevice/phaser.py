@@ -236,7 +236,7 @@ class Phaser:
             raise ValueError("DAC temperature out of bounds")
 
         for data in self.dac_mmap:
-            self.dac_write(data >> 16, data)
+            self.dac_write(data >> 16, data & 0xffff)
             delay(120*us)
         self.dac_sync()
         delay(40*us)
@@ -386,7 +386,7 @@ class Phaser:
     def write32(self, addr, data: TInt32):
         """Write 32 bit to a sequence of FPGA registers."""
         for offset in range(4):
-            byte = data >> 24
+            byte = (data >> 24) & 0xff
             self.write8(addr + offset, byte)
             data <<= 8
 
@@ -564,10 +564,10 @@ class Phaser:
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=0)
         self.spi_write(addr)
         delay_mu(t_xfer)
-        self.spi_write(data >> 8)
+        self.spi_write((data >> 8) & 0xff)
         delay_mu(t_xfer)
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=1)
-        self.spi_write(data)
+        self.spi_write(data & 0xff)
         delay_mu(t_xfer)
 
     @kernel
@@ -840,8 +840,8 @@ class PhaserChannel:
         :param pow: DUC phase offset word (16 bit)
         """
         addr = PHASER_ADDR_DUC0_P + (self.index << 4)
-        self.phaser.write8(addr, pow >> 8)
-        self.phaser.write8(addr + 1, pow)
+        self.phaser.write8(addr, (pow >> 8) & 0xff)
+        self.phaser.write8(addr + 1, pow & 0xff)
 
     @kernel
     def set_duc_phase(self, phase):
