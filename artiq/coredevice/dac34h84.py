@@ -190,7 +190,7 @@ class DAC34H84:
             (self.mask_alarm_dataclk_gone << 9) |
             (self.mask_alarm_output_gone << 8) |
             (self.mask_alarm_from_iotest << 7) | (1 << 6) |
-            (self.mask_alarm_from_pll << 5) | (self.mask_alarm_parity << 1))
+            (self.mask_alarm_from_pll << 5) | (self.mask_alarm_parity << 1) | (1 << 0))
         mmap.append(
             (0x08 << 16) | (self.qmc_offseta << 0))
         mmap.append(
