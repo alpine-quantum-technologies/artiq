@@ -64,6 +64,8 @@ def get_target_cls(target):
         return RV32IMATarget
     elif target == "cortexa9":
         return CortexA9Target
+    elif target == "x86_64-host":
+        return X8664HostTarget
     else:
         raise ValueError("Unsupported target")
 
@@ -100,16 +102,6 @@ class Core:
         self.ref_multiplier = ref_multiplier
         self.satellite_cpu_targets = satellite_cpu_targets
         self.target_cls = get_target_cls(target)
-        if target == "rv32g":
-            self.target_cls = RV32GTarget
-        elif target == "rv32ima":
-            self.target_cls = RV32IMATarget
-        elif target == "cortexa9":
-            self.target_cls = CortexA9Target
-        elif target == "x86_64-host":
-            self.target_cls = X8664HostTarget
-        else:
-            raise ValueError("Unsupported target")
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()
@@ -129,7 +121,7 @@ class Core:
             self.trigger_analyzer_proxy()
 
     def close(self):
-        """Disconnect core device and close sockets. 
+        """Disconnect core device and close sockets.
         """
         self.comm.close()
 
@@ -195,7 +187,7 @@ class Core:
         target = get_target_cls(destination_tgt)(subkernel_id=sid)
         object_map, kernel_library, _, _, _ = \
             self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
-                        print_as_rpc=False, target=target, destination=destination, 
+                        print_as_rpc=False, target=target, destination=destination,
                         subkernel_arg_types=subkernel_arg_types.get(sid, []),
                         old_embedding_map=embedding_map)
         if object_map.has_rpc():
