@@ -97,6 +97,7 @@ class RpcInfo:
                 function=None,
                 syscall=None,
                 forbidden=False,
+                destination=0,
                 flags=set()
             )
         )
