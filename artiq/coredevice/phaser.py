@@ -110,7 +110,7 @@ class Phaser:
 
     The coredevice produces 2 IQ (in-phase and quadrature) data streams with 25
     MS/s and 14 bits per quadrature. Each data stream supports 5 independent
-    numerically controlled IQ oscillators (NCOs, DDSs with 32-bit frequency, 
+    numerically controlled IQ oscillators (NCOs, DDSs with 32-bit frequency,
     16-bit phase, 15-bit amplitude, and phase accumulator clear functionality)
     added together. See :class:`PhaserChannel` and :class:`PhaserOscillator`.
 
@@ -700,7 +700,7 @@ class Phaser:
 
         :return: DAC temperature in degree Celsius
         """
-        return self.dac_read(0x06, div=257) >> 8
+        return self.dac_read(0x06, div=250) >> 8
 
     @kernel
     def dac_sync(self):
@@ -968,7 +968,7 @@ class PhaserChannel:
         This method stages the new NCO frequency, but does not apply it.
 
         Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
-        can be configured via the ``dac`` configuration dictionary (see 
+        can be configured via the ``dac`` configuration dictionary (see
         :class:`Phaser`).
 
         :param ftw: NCO frequency tuning word (32-bit)
@@ -1356,28 +1356,28 @@ class Miqro:
     * The output phase ``p'`` of each oscillator at time ``t`` (boot/reset/initialization of the
       device at ``t=0``) is then ``p' = f*t + p (mod 1 turn)`` where ``f`` and ``p`` are the (currently
       active) profile frequency and phase offset.
-    
-    .. note :: 
+
+    .. note ::
         The terms  "phase coherent" and "phase tracking" are defined to refer to this
         choice of oscillator output phase ``p'``. Note that the phase offset ``p`` is not relative to
         (on top of previous phase/profiles/oscillator history).
         It is "absolute" in the sense that frequency ``f`` and phase offset ``p`` fully determine
         oscillator output phase ``p'`` at time ``t``. This is unlike typical DDS behavior.
-    
+
     * Frequency, phase, and amplitude of each oscillator are configurable by selecting one of
-      ``n_profiles = 32`` profiles ``0``... ``n_profile-1``. This selection is fast and can be 
+      ``n_profiles = 32`` profiles ``0``... ``n_profile-1``. This selection is fast and can be
       done for each pulse. The phase coherence defined above is guaranteed for each
       profile individually.
     * Note: one profile per oscillator (usually profile index 0) should be reserved
       for the NOP (no operation, identity) profile, usually with zero amplitude.
     * Data for each profile for each oscillator can be configured
       individually. Storing profile data should be considered "expensive".
-    
-    .. note:: 
-        To refer to an operation as "expensive" does not mean it is impossible, 
-        merely that it may take a significant amount of time and resources to 
-        execute, such that it may be impractical when used often or during fast 
-        pulse sequences. They are intended for use in calibration and initialization.  
+
+    .. note::
+        To refer to an operation as "expensive" does not mean it is impossible,
+        merely that it may take a significant amount of time and resources to
+        execute, such that it may be impractical when used often or during fast
+        pulse sequences. They are intended for use in calibration and initialization.
 
     **Summation**
 
