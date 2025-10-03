@@ -97,12 +97,12 @@ macro_rules! raise {
         let name_id = $crate::eh_artiq::get_exception_id($name);
         let exn = $crate::eh_artiq::Exception {
             id: name_id,
-            file: file!().as_c_slice(),
+            file: file!().into(),
             line: line!(),
             column: column!(),
             // https://github.com/rust-lang/rfcs/pull/1719
-            function: "(Rust function)".as_c_slice(),
-            message: $message.as_c_slice(),
+            function: "(Rust function)".into(),
+            message: $message.into(),
             param: [$param0, $param1, $param2],
         };
         #[allow(unused_unsafe)]

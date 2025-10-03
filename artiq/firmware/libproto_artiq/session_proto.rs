@@ -1,7 +1,6 @@
 use alloc::{collections::BTreeMap, format, string::String, vec::Vec};
-use core::{slice, str, str::Utf8Error};
-use cslice::CSlice;
-use eh::eh_artiq::{Exception, StackPointerBacktrace};
+use core::{str, str::Utf8Error};
+use eh::eh_artiq::{Exception, ExceptionStr, ExceptionStrValue, StackPointerBacktrace};
 
 use io::{Error as IoError, ProtoRead, ProtoWrite, Read, ReadStringError, Write};
 
@@ -168,17 +167,21 @@ impl Request {
 
 fn write_exception_string<'a, W>(
     writer: &mut W,
-    s: &CSlice<'a, u8>,
+    s: ExceptionStr<'a>,
 ) -> Result<(), IoError<W::WriteError>>
 where
     W: Write + ?Sized,
 {
-    if s.len() == usize::MAX {
-        writer.write_u32(u32::MAX)?;
-        writer.write_u32(s.as_ptr() as u32)?;
-    } else {
-        writer.write_string(core::str::from_utf8(s.as_ref()).unwrap())?;
+    match s.value() {
+        ExceptionStrValue::HostKey(host_key) => {
+            writer.write_u32(u32::MAX)?;
+            writer.write_u32(host_key)?;
+        }
+        ExceptionStrValue::String(s) => {
+            writer.write_string(s.unwrap())?;
+        }
     }
+
     Ok(())
 }
 
@@ -225,36 +228,31 @@ impl<'a> Reply<'a> {
                 for exception in exceptions.iter() {
                     let exception = exception.as_ref().unwrap();
                     writer.write_u32(exception.id as u32)?;
-                    if exception.message.len() == usize::MAX {
-                        // exception with host string
-                        write_exception_string(writer, &exception.message)?;
-                    } else {
-                        let msg = str::from_utf8(unsafe {
-                            slice::from_raw_parts(
-                                exception.message.as_ptr(),
-                                exception.message.len(),
-                            )
-                        })
-                        .unwrap()
-                        .replace(
-                            "{rtio_channel_info:0}",
-                            &format!(
-                                "0x{:04x}:{}",
-                                exception.param[0],
-                                resolve_channel_name(exception.param[0] as u32)
-                            ),
-                        );
-                        write_exception_string(writer, unsafe {
-                            &CSlice::new(msg.as_ptr(), msg.len())
-                        })?;
+
+                    match exception.message.value() {
+                        ExceptionStrValue::HostKey(host_key) => {
+                            write_exception_string(writer, exception.message)?;
+                        }
+                        ExceptionStrValue::String(s) => {
+                            let msg = s.unwrap().replace(
+                                "{rtio_channel_info:0}",
+                                &format!(
+                                    "0x{:04x}:{}",
+                                    exception.param[0],
+                                    resolve_channel_name(exception.param[0] as u32)
+                                ),
+                            );
+                            write_exception_string(writer, ExceptionStr::from(msg.as_str()))?;
+                        }
                     }
+
                     writer.write_u64(exception.param[0] as u64)?;
                     writer.write_u64(exception.param[1] as u64)?;
                     writer.write_u64(exception.param[2] as u64)?;
-                    write_exception_string(writer, &exception.file)?;
+                    write_exception_string(writer, exception.file)?;
                     writer.write_u32(exception.line)?;
                     writer.write_u32(exception.column)?;
-                    write_exception_string(writer, &exception.function)?;
+                    write_exception_string(writer, exception.function)?;
                 }
 
                 for sp in stack_pointers.iter() {

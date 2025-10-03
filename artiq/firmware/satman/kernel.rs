@@ -516,12 +516,14 @@ impl Manager {
         match (HostKernelException {
             exceptions: &[Some(eh_artiq::Exception {
                 id: 11, // SubkernelError, defined in ksupport
-                message: format!("in subkernel id {}: {:?}", self.current_id, cause).as_c_slice(),
+                message: format!("in subkernel id {}: {:?}", self.current_id, cause)
+                    .as_str()
+                    .into(),
                 param: [0, 0, 0],
-                file: file!().as_c_slice(),
+                file: file!().into(),
                 line: line!(),
                 column: column!(),
-                function: format!("subkernel id {}", self.current_id).as_c_slice(),
+                function: format!("subkernel id {}", self.current_id).as_str().into(),
             })],
             stack_pointers: &[StackPointerBacktrace {
                 stack_pointer: 0,

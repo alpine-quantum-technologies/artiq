@@ -11,7 +11,6 @@
 #![allow(non_camel_case_types)]
 
 use core::mem;
-use cslice::AsCSlice;
 use libc::{c_int, c_void};
 use unwind as uw;
 
@@ -216,12 +215,12 @@ pub unsafe extern "C-unwind" fn raise(exception: *const Exception) -> ! {
             // TODO: better reporting?
             let exception = Exception {
                 id: get_exception_id("RuntimeError"),
-                file: file!().as_c_slice(),
+                file: file!().into(),
                 line: line!(),
                 column: column!(),
                 // https://github.com/rust-lang/rfcs/pull/1719
-                function: "__artiq_raise".as_c_slice(),
-                message: "too many nested exceptions".as_c_slice(),
+                function: "__artiq_raise".into(),
+                message: "too many nested exceptions".into(),
                 param: [0, 0, 0],
             };
             EXCEPTION_BUFFER.exceptions[MAX_INFLIGHT_EXCEPTIONS] = Some(mem::transmute(exception));
@@ -399,11 +398,11 @@ pub extern "C-unwind" fn test_exception_id_sync(exn_id: u32) {
 
     let exn = Exception {
         id: exn_id,
-        file: file!().as_c_slice(),
+        file: file!().into(),
         line: 0,
         column: 0,
-        function: "test_exception_id_sync".as_c_slice(),
-        message: message.as_c_slice(),
+        function: "test_exception_id_sync".into(),
+        message: message.into(),
         param: [0, 0, 0],
     };
     unsafe { raise(&exn) };

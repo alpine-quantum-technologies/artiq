@@ -497,12 +497,12 @@ fn process_host_message(
             unsafe {
                 let exn = eh::eh_artiq::Exception {
                     id: id,
-                    message: CSlice::new(message as *const u8, usize::MAX),
+                    message: message.into(),
                     param: param,
-                    file: CSlice::new(file as *const u8, usize::MAX),
+                    file: file.into(),
                     line: line,
                     column: column,
-                    function: CSlice::new(function as *const u8, usize::MAX),
+                    function: function.into(),
                 };
                 kern_send(io, &kern::RpcRecvReply(Err(exn)))?;
             }
