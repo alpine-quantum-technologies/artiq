@@ -2,15 +2,15 @@
 #![crate_name = "artiq_support"]
 #![crate_type = "cdylib"]
 
-extern crate std as core;
 extern crate libc;
+extern crate std as core;
 extern crate unwind;
 
 // Note: this does *not* match the cslice crate!
 // ARTIQ Python has the slice length field fixed at 32 bits, even on 64-bit platforms.
 mod cslice {
-    use core::marker::PhantomData;
     use core::convert::AsRef;
+    use core::marker::PhantomData;
     use core::slice;
 
     #[repr(C)]
@@ -18,7 +18,7 @@ mod cslice {
     pub struct CSlice<'a, T> {
         base: *const T,
         len: u32,
-        phantom: PhantomData<&'a ()>
+        phantom: PhantomData<&'a ()>,
     }
 
     impl<'a, T> CSlice<'a, T> {
@@ -33,9 +33,7 @@ mod cslice {
 
     impl<'a, T> AsRef<[T]> for CSlice<'a, T> {
         fn as_ref(&self) -> &[T] {
-            unsafe {
-                slice::from_raw_parts(self.base, self.len as usize)
-            }
+            unsafe { slice::from_raw_parts(self.base, self.len as usize) }
         }
     }
 
@@ -48,7 +46,7 @@ mod cslice {
             CSlice {
                 base: self.as_ptr(),
                 len: self.len() as u32,
-                phantom: PhantomData
+                phantom: PhantomData,
             }
         }
     }
@@ -64,24 +62,30 @@ pub mod eh {
 #[path = "../../firmware/ksupport/eh_artiq.rs"]
 pub mod eh_artiq;
 
-use std::{str, process};
+use std::{process, str};
 
-fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
-             _stack_pointers: &'static [eh_artiq::StackPointerBacktrace],
-             _backtrace: &'static mut [(usize, usize)]) -> ! {
+fn terminate(
+    exceptions: &'static [Option<eh_artiq::Exception<'static>>],
+    _stack_pointers: &'static [eh_artiq::StackPointerBacktrace],
+    _backtrace: &'static mut [(usize, usize)],
+) -> ! {
     println!("{}", exceptions.len());
     for exception in exceptions.iter() {
         let exception = exception.as_ref().unwrap();
-        println!("Uncaught {}: {} ({}, {}, {})",
-                 exception.id,
-                 str::from_utf8(exception.message.as_ref()).unwrap(),
-                 exception.param[0],
-                 exception.param[1],
-                 exception.param[2]);
-        println!("at {}:{}:{}",
-                 str::from_utf8(exception.file.as_ref()).unwrap(),
-                 exception.line,
-                 exception.column);
+        println!(
+            "Uncaught {}: {} ({}, {}, {})",
+            exception.id,
+            str::from_utf8(exception.message.as_ref()).unwrap(),
+            exception.param[0],
+            exception.param[1],
+            exception.param[2]
+        );
+        println!(
+            "at {}:{}:{}",
+            str::from_utf8(exception.file.as_ref()).unwrap(),
+            exception.line,
+            exception.column
+        );
     }
     process::exit(1);
 }

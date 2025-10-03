@@ -6,13 +6,13 @@ use cslice::CSlice;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct Exception<'a> {
-    pub id:       u32,
-    pub file:     CSlice<'a, u8>,
-    pub line:     u32,
-    pub column:   u32,
+    pub id: u32,
+    pub file: CSlice<'a, u8>,
+    pub line: u32,
+    pub column: u32,
     pub function: CSlice<'a, u8>,
-    pub message:  CSlice<'a, u8>,
-    pub param:    [i64; 3]
+    pub message: CSlice<'a, u8>,
+    pub param: [i64; 3],
 }
 
 fn str_err(_: core::str::Utf8Error) -> core::fmt::Error {
@@ -29,12 +29,16 @@ fn exception_str<'a>(s: &'a CSlice<'a, u8>) -> Result<&'a str, core::str::Utf8Er
 
 impl<'a> core::fmt::Debug for Exception<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Exception {} from {} in {}:{}:{}, message: {}",
+        write!(
+            f,
+            "Exception {} from {} in {}:{}:{}, message: {}",
             self.id,
             exception_str(&self.function).map_err(str_err)?,
             exception_str(&self.file).map_err(str_err)?,
-            self.line, self.column,
-            exception_str(&self.message).map_err(str_err)?)
+            self.line,
+            self.column,
+            exception_str(&self.message).map_err(str_err)?
+        )
     }
 }
 
@@ -44,4 +48,3 @@ pub struct StackPointerBacktrace {
     pub initial_backtrace_size: usize,
     pub current_backtrace_size: usize,
 }
-
