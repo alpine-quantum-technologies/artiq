@@ -1,15 +1,15 @@
-from operator import itemgetter
-from collections import namedtuple
-from itertools import count
-from contextlib import contextmanager
-from sipyco import keepalive
 import asyncio
-from enum import Enum
-import struct
 import logging
-import socket
 import math
+import socket
+import struct
+from collections import namedtuple
+from contextlib import contextmanager
+from enum import Enum
+from itertools import count
+from operator import itemgetter
 
+from sipyco import keepalive
 
 logger = logging.getLogger(__name__)
 
@@ -352,6 +352,23 @@ class ChannelSignatureManager:
         yield
         self.current_scope = old_scope
 
+class GenericHandler:
+    """Handler for generic RTIO events that are not covered by specialized handlers."""
+    def __init__(self, manager, name):
+        self.name = name
+        self.channel_address = manager.get_channel(name + "/address", 32, ty=WaveformType.VECTOR)
+        self.channel_data = manager.get_channel(name + "/data", 32, ty=WaveformType.VECTOR)
+
+    def process_message(self, message):
+        if isinstance(message, OutputMessage):
+            logger.debug("generic RTIO output @%d %d to %d, name: %s",
+                message.timestamp, message.data, message.address, self.name)
+            self.channel_address.set_value(str(message.address))
+            self.channel_data.set_value(str(message.data))
+        elif isinstance(message, InputMessage):
+            logger.debug("generic RTIO input  @%d %d, name: %s",
+                message.timestamp, message.data, self.name)
+            self.channel_data.set_value(str(message.data))
 
 class TTLHandler:
     def __init__(self, manager, name):
@@ -586,6 +603,7 @@ class SPIMaster2Handler(WishboneHandler):
             self._reads.append(message)
 
 
+
 def _extract_log_chars(data):
     r = ""
     for i in range(4):
@@ -685,6 +703,10 @@ def create_channel_handlers(manager, devices, ref_period,
                     desc["class"] == "SPIMaster"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = SPIMaster2Handler(
+                        manager, name)
+            else:
+                channel = desc["arguments"]["channel"]
+                channel_handlers[channel] = GenericHandler(
                         manager, name)
     return channel_handlers
 
