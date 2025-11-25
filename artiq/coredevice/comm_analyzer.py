@@ -755,8 +755,29 @@ def create_channel_handlers(manager, devices, ref_period, dds_sysclk, dds_onehot
 
             elif desc["module"] == "artiq.coredevice.grabber":
                 channel_base = desc["arguments"]["channel_base"]
-                channel_handlers[channel_base] = GenericHandler(manager, name + "_offset0")
-                channel_handlers[channel_base + 1] = GenericHandler(manager, name + "_offset1")
+                channel_handlers[channel_base] = GenericHandler(
+                    manager, name + "_offset0"
+                )
+                channel_handlers[channel_base + 1] = GenericHandler(
+                    manager, name + "_offset1"
+                )
+            elif desc["module"] == "artiq.coredevice.phaser":
+                channel_base = desc["arguments"]["channel_base"]
+                channel_handlers[channel_base] = GenericHandler(
+                    manager, name + "_offset0"
+                )
+                channel_handlers[channel_base + 1] = GenericHandler(
+                    manager, name + "_offset1"
+                )
+                channel_handlers[channel_base + 2] = GenericHandler(
+                    manager, name + "_offset2"
+                )
+                channel_handlers[channel_base + 3] = GenericHandler(
+                    manager, name + "_offset3"
+                )
+                channel_handlers[channel_base + 4] = GenericHandler(
+                    manager, name + "_offset4"
+                )
             elif "arguments" in desc and "channel" in desc["arguments"]:
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = GenericHandler(manager, name)
