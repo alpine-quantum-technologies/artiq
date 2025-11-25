@@ -63,16 +63,14 @@ def get_analyzer_dump(host, port=1382):
 
 
 OutputMessage = namedtuple(
-    "OutputMessage", "channel timestamp rtio_counter address data")
+    "OutputMessage", "channel timestamp rtio_counter address data"
+)
 
-InputMessage = namedtuple(
-    "InputMessage", "channel timestamp rtio_counter data")
+InputMessage = namedtuple("InputMessage", "channel timestamp rtio_counter data")
 
-ExceptionMessage = namedtuple(
-    "ExceptionMessage", "channel rtio_counter exception_type")
+ExceptionMessage = namedtuple("ExceptionMessage", "channel rtio_counter exception_type")
 
-StoppedMessage = namedtuple(
-    "StoppedMessage", "rtio_counter")
+StoppedMessage = namedtuple("StoppedMessage", "rtio_counter")
 
 
 def decode_message(data):
@@ -90,8 +88,7 @@ def decode_message(data):
         return InputMessage(channel, timestamp, rtio_counter, data)
     elif message_type == MessageType.exception:
         exception_type, rtio_counter = struct.unpack(">BQ", data[11:20])
-        return ExceptionMessage(channel, rtio_counter,
-                                ExceptionType(exception_type))
+        return ExceptionMessage(channel, rtio_counter, ExceptionType(exception_type))
     elif message_type == MessageType.stopped:
         rtio_counter = struct.unpack(">Q", data[12:20])[0]
         return StoppedMessage(rtio_counter)
@@ -99,45 +96,45 @@ def decode_message(data):
         raise ValueError
 
 
-DecodedDump = namedtuple(
-    "DecodedDump", "log_channel dds_onehot_sel messages")
+DecodedDump = namedtuple("DecodedDump", "log_channel dds_onehot_sel messages")
 
 
 def decode_dump(data):
     # extract endian byte
-    if data[0] == ord('E'):
-        endian = '>'
-    elif data[0] == ord('e'):
-        endian = '<'
+    if data[0] == ord("E"):
+        endian = ">"
+    elif data[0] == ord("e"):
+        endian = "<"
     else:
         raise ValueError
     data = data[1:]
     # only header is device endian
     # messages are big endian
     parts = struct.unpack(endian + "IQbbb", data[:15])
-    (sent_bytes, total_byte_count,
-     error_occurred, log_channel, dds_onehot_sel) = parts
+    (sent_bytes, total_byte_count, error_occurred, log_channel, dds_onehot_sel) = parts
 
     logger.debug("analyzer dump has length %d", sent_bytes)
 
     expected_len = sent_bytes + 15
     if expected_len != len(data):
-        raise ValueError("analyzer dump has incorrect length "
-                         "(got {}, expected {})".format(
-                            len(data), expected_len))
+        raise ValueError(
+            "analyzer dump has incorrect length (got {}, expected {})".format(
+                len(data), expected_len
+            )
+        )
     if error_occurred:
-        logger.warning("error occurred within the analyzer, "
-                       "data may be corrupted")
+        logger.warning("error occurred within the analyzer, data may be corrupted")
     if total_byte_count > sent_bytes:
-        logger.info("analyzer ring buffer has wrapped %d times",
-                    total_byte_count//sent_bytes)
+        logger.info(
+            "analyzer ring buffer has wrapped %d times", total_byte_count // sent_bytes
+        )
     if sent_bytes == 0:
         logger.warning("analyzer dump is empty")
 
     position = 15
     messages = []
-    for _ in range(sent_bytes//32):
-        messages.append(decode_message(data[position:position+32]))
+    for _ in range(sent_bytes // 32):
+        messages.append(decode_message(data[position : position + 32]))
         position += 32
 
     if len(messages) == 1 and isinstance(messages[0], StoppedMessage):
@@ -153,8 +150,7 @@ class AnalyzerProxyReceiver:
         self.disconnect_cb = disconnect_cb
 
     async def connect(self, host, port):
-        self.reader, self.writer = \
-            await keepalive.async_open_connection(host, port)
+        self.reader, self.writer = await keepalive.async_open_connection(host, port)
         try:
             line = await self.reader.readline()
             assert line == ANALYZER_MAGIC
@@ -187,9 +183,9 @@ class AnalyzerProxyReceiver:
                     # EOF reached, connection lost
                     return
                 if data[0] == ord("E"):
-                    endian = '>'
+                    endian = ">"
                 elif data[0] == ord("e"):
-                    endian = '<'
+                    endian = "<"
                 else:
                     raise ValueError
                 data.extend(await self.reader.readexactly(4))
@@ -202,7 +198,9 @@ class AnalyzerProxyReceiver:
                 data.extend(await self.reader.readexactly(payload_length + 11))
                 self.receive_cb(data)
         except Exception:
-            logger.error("analyzer receiver connection terminating with exception", exc_info=True)
+            logger.error(
+                "analyzer receiver connection terminating with exception", exc_info=True
+            )
         finally:
             if self.disconnect_cb is not None:
                 self.disconnect_cb()
@@ -253,8 +251,11 @@ class VCDManager:
 
     def get_channel(self, name, width, ty, precision=0, unit=""):
         code = next(self.codes)
-        self.out.write("$var wire {width} {code} {name} $end\n"
-                       .format(name=name, code=code, width=width))
+        self.out.write(
+            "$var wire {width} {code} {name} $end\n".format(
+                name=name, code=code, width=width
+            )
+        )
         return VCDChannel(self.out, code)
 
     @contextmanager
@@ -352,23 +353,39 @@ class ChannelSignatureManager:
         yield
         self.current_scope = old_scope
 
+
 class GenericHandler:
     """Handler for generic RTIO events that are not covered by specialized handlers."""
+
     def __init__(self, manager, name):
         self.name = name
-        self.channel_address = manager.get_channel(name + "/address", 32, ty=WaveformType.VECTOR)
-        self.channel_data = manager.get_channel(name + "/data", 32, ty=WaveformType.VECTOR)
+        self.channel_address = manager.get_channel(
+            name + "/address", 32, ty=WaveformType.VECTOR
+        )
+        self.channel_data = manager.get_channel(
+            name + "/data", 32, ty=WaveformType.VECTOR
+        )
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
-            logger.debug("generic RTIO output @%d %d to %d, name: %s",
-                message.timestamp, message.data, message.address, self.name)
-            self.channel_address.set_value(str(message.address))
-            self.channel_data.set_value(str(message.data))
+            logger.debug(
+                "generic RTIO output @%d %d to %d, name: %s",
+                message.timestamp,
+                message.data,
+                message.address,
+                self.name,
+            )
+            self.channel_address.set_value("{:032b}".format(message.address))
+            self.channel_data.set_value("{:032b}".format(message.data))
         elif isinstance(message, InputMessage):
-            logger.debug("generic RTIO input  @%d %d, name: %s",
-                message.timestamp, message.data, self.name)
-            self.channel_data.set_value(str(message.data))
+            logger.debug(
+                "generic RTIO input  @%d %d, name: %s",
+                message.timestamp,
+                message.data,
+                self.name,
+            )
+            self.channel_data.set_value("{:032b}".format(message.data))
+
 
 class TTLHandler:
     def __init__(self, manager, name):
@@ -379,8 +396,13 @@ class TTLHandler:
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
-            logger.debug("TTL write @%d %d to %d, name: %s",
-                message.timestamp, message.data, message.address, self.name)
+            logger.debug(
+                "TTL write @%d %d to %d, name: %s",
+                message.timestamp,
+                message.data,
+                message.address,
+                self.name,
+            )
             if message.address == 0:
                 self.last_value = str(message.data)
                 if self.oe:
@@ -392,8 +414,9 @@ class TTLHandler:
                 else:
                     self.channel_value.set_value("X")
         elif isinstance(message, InputMessage):
-            logger.debug("TTL read  @%d %d, name: %s",
-                message.timestamp, message.data, self.name)
+            logger.debug(
+                "TTL read  @%d %d, name: %s", message.timestamp, message.data, self.name
+            )
             self.channel_value.set_value(str(message.data))
 
 
@@ -403,13 +426,23 @@ class TTLClockGenHandler:
         self.ref_period = ref_period
         precision = max(0, math.ceil(math.log10(2**24 * ref_period) + 6))
         self.channel_frequency = manager.get_channel(
-            "ttl_clkgen/" + name, 64, ty=WaveformType.ANALOG, precision=precision, unit="MHz")
+            "ttl_clkgen/" + name,
+            64,
+            ty=WaveformType.ANALOG,
+            precision=precision,
+            unit="MHz",
+        )
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
-            logger.debug("TTL_CLKGEN write @%d %d to %d, name: %s",
-                message.timestamp, message.data, message.address, self.name)
-            frequency = message.data/self.ref_period/2**24
+            logger.debug(
+                "TTL_CLKGEN write @%d %d to %d, name: %s",
+                message.timestamp,
+                message.data,
+                message.address,
+                self.name,
+            )
+            frequency = message.data / self.ref_period / 2**24
             self.channel_frequency.set_value_double(frequency)
 
 
@@ -427,15 +460,16 @@ class DDSHandler:
         frequency_precision = max(0, math.ceil(math.log10(2**32 / self.sysclk) + 6))
         phase_precision = max(0, math.ceil(math.log10(2**16)))
         with self.manager.scope("dds", name):
-            dds_channel["vcd_frequency"] = \
-                self.manager.get_channel(name + "/frequency", 64, 
-                                         ty=WaveformType.ANALOG, 
-                                         precision=frequency_precision,
-                                         unit="MHz")
-            dds_channel["vcd_phase"] = \
-                self.manager.get_channel(name + "/phase", 64, 
-                                         ty=WaveformType.ANALOG,
-                                         precision=phase_precision)
+            dds_channel["vcd_frequency"] = self.manager.get_channel(
+                name + "/frequency",
+                64,
+                ty=WaveformType.ANALOG,
+                precision=frequency_precision,
+                unit="MHz",
+            )
+            dds_channel["vcd_phase"] = self.manager.get_channel(
+                name + "/phase", 64, ty=WaveformType.ANALOG, precision=phase_precision
+            )
         dds_channel["ftw"] = [None, None]
         dds_channel["pow"] = None
         self.dds_channels[dds_channel_nr] = dds_channel
@@ -468,19 +502,22 @@ class DDSHandler:
                 dds_channel["pow"] = message.data
             elif message.address == 0x80:  # FUD
                 if None not in dds_channel["ftw"]:
-                    ftw = sum(x << i*16
-                              for i, x in enumerate(dds_channel["ftw"]))
-                    frequency = ftw*self.sysclk/2**32
+                    ftw = sum(x << i * 16 for i, x in enumerate(dds_channel["ftw"]))
+                    frequency = ftw * self.sysclk / 2**32
                     dds_channel["vcd_frequency"].set_value_double(frequency)
                 if dds_channel["pow"] is not None:
-                    phase = dds_channel["pow"]/2**16
+                    phase = dds_channel["pow"] / 2**16
                     dds_channel["vcd_phase"].set_value_double(phase)
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
-            logger.debug("DDS write @%d 0x%04x to 0x%02x, selected channels: %s",
-                         message.timestamp, message.data, message.address,
-                         self.selected_dds_channels)
+            logger.debug(
+                "DDS write @%d 0x%04x to 0x%02x, selected channels: %s",
+                message.timestamp,
+                message.data,
+                message.address,
+                self.selected_dds_channels,
+            )
             self._decode_ad9914_write(message)
 
 
@@ -494,20 +531,25 @@ class WishboneHandler:
         self.stb.set_value("1")
         self.stb.set_value("0")
         if isinstance(message, OutputMessage):
-            logger.debug("Wishbone out @%d adr=0x%02x data=0x%08x",
-                         message.timestamp, message.address, message.data)
+            logger.debug(
+                "Wishbone out @%d adr=0x%02x data=0x%08x",
+                message.timestamp,
+                message.address,
+                message.data,
+            )
             if message.address & self._read_bit:
                 read = self._reads.pop(0)
                 self.process_read(
-                        message.address & ~self._read_bit,
-                        read.data,
-                        read.rtio_counter - message.timestamp)
+                    message.address & ~self._read_bit,
+                    read.data,
+                    read.rtio_counter - message.timestamp,
+                )
             else:
-                self.process_write(message.address,
-                        message.data)
+                self.process_write(message.address, message.data)
         if isinstance(message, InputMessage):
-            logger.debug("Wishbone in @%d data=0x%08x",
-                         message.rtio_counter, message.data)
+            logger.debug(
+                "Wishbone in @%d data=0x%08x", message.rtio_counter, message.data
+            )
             self._reads.append(message)
 
     def process_write(self, address, data):
@@ -524,22 +566,24 @@ class SPIMasterHandler(WishboneHandler):
         with manager.scope("spi", name):
             super().__init__(manager, name, read_bit=0b100)
             for reg_name, reg_width in [
-                    ("config", 32), ("chip_select", 16),
-                    ("write_length", 8), ("read_length", 8),
-                    ("write", 32), ("read", 32)]:
+                ("config", 32),
+                ("chip_select", 16),
+                ("write_length", 8),
+                ("read_length", 8),
+                ("write", 32),
+                ("read", 32),
+            ]:
                 self.channels[reg_name] = manager.get_channel(
-                    "{}/{}".format(name, reg_name), reg_width, ty=WaveformType.VECTOR)
+                    "{}/{}".format(name, reg_name), reg_width, ty=WaveformType.VECTOR
+                )
 
     def process_write(self, address, data):
         if address == 0:
             self.channels["write"].set_value("{:032b}".format(data))
         elif address == 1:
-            self.channels["chip_select"].set_value(
-                    "{:08b}".format(data & 0xffff))
-            self.channels["write_length"].set_value(
-                    "{:08b}".format(data >> 16 & 0xff))
-            self.channels["read_length"].set_value(
-                    "{:08b}".format(data >> 24 & 0xff))
+            self.channels["chip_select"].set_value("{:08b}".format(data & 0xFFFF))
+            self.channels["write_length"].set_value("{:08b}".format(data >> 16 & 0xFF))
+            self.channels["read_length"].set_value("{:08b}".format(data >> 24 & 0xFF))
         elif address == 2:
             self.channels["config"].set_value("{:032b}".format(data))
         else:
@@ -560,14 +604,16 @@ class SPIMaster2Handler(WishboneHandler):
         with manager.scope("spi2", name):
             self.stb = manager.get_channel(name + "/stb", 1, ty=WaveformType.BIT)
             for reg_name, reg_width in [
-                    ("flags", 8),
-                    ("length", 5),
-                    ("div", 8),
-                    ("chip_select", 8),
-                    ("write", 32),
-                    ("read", 32)]:
+                ("flags", 8),
+                ("length", 5),
+                ("div", 8),
+                ("chip_select", 8),
+                ("write", 32),
+                ("read", 32),
+            ]:
                 self.channels[reg_name] = manager.get_channel(
-                    "{}/{}".format(name, reg_name), reg_width, ty=WaveformType.VECTOR)
+                    "{}/{}".format(name, reg_name), reg_width, ty=WaveformType.VECTOR
+                )
 
     def process_message(self, message):
         self.stb.set_value("1")
@@ -576,39 +622,30 @@ class SPIMaster2Handler(WishboneHandler):
             data = message.data
             address = message.address
             if address == 1:
-                logger.debug("SPI config @%d data=0x%08x",
-                         message.timestamp, data)
-                self.channels["chip_select"].set_value(
-                        "{:08b}".format(data >> 24))
-                self.channels["div"].set_value(
-                        "{:08b}".format(data >> 16 & 0xff))
-                self.channels["length"].set_value(
-                        "{:08b}".format(data >> 8 & 0x1f))
-                self.channels["flags"].set_value(
-                        "{:08b}".format(data & 0xff))
+                logger.debug("SPI config @%d data=0x%08x", message.timestamp, data)
+                self.channels["chip_select"].set_value("{:08b}".format(data >> 24))
+                self.channels["div"].set_value("{:08b}".format(data >> 16 & 0xFF))
+                self.channels["length"].set_value("{:08b}".format(data >> 8 & 0x1F))
+                self.channels["flags"].set_value("{:08b}".format(data & 0xFF))
             elif address == 0:
-                logger.debug("SPI write @%d data=0x%08x",
-                         message.timestamp, data)
+                logger.debug("SPI write @%d data=0x%08x", message.timestamp, data)
                 self.channels["write"].set_value("{:032b}".format(data))
             else:
                 raise ValueError("bad address", address)
             # process untimed reads and insert them here
-            while (self._reads and
-                   self._reads[0].rtio_counter < message.timestamp):
+            while self._reads and self._reads[0].rtio_counter < message.timestamp:
                 read = self._reads.pop(0)
-                logger.debug("SPI read @%d data=0x%08x",
-                            read.rtio_counter, read.data)
+                logger.debug("SPI read @%d data=0x%08x", read.rtio_counter, read.data)
                 self.channels["read"].set_value("{:032b}".format(read.data))
         elif isinstance(message, InputMessage):
             self._reads.append(message)
-
 
 
 def _extract_log_chars(data):
     r = ""
     for i in range(4):
         n = data >> 24
-        data = (data << 8) & 0xffffffff
+        data = (data << 8) & 0xFFFFFFFF
         if not n:
             continue
         r += chr(n)
@@ -619,16 +656,18 @@ class LogHandler:
     def __init__(self, manager, log_channels):
         self.channels = dict()
         for name, maxlength in log_channels.items():
-            self.channels[name] = manager.get_channel("logs/" + name,
-                                                      maxlength * 8,
-                                                      ty=WaveformType.LOG)
+            self.channels[name] = manager.get_channel(
+                "logs/" + name, maxlength * 8, ty=WaveformType.LOG
+            )
         self.current_entry = ""
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
             self.current_entry += _extract_log_chars(message.data)
-            if len(self.current_entry) > 1 and self.current_entry[-1] == "\x1D":
-                channel_name, log_message = self.current_entry[:-1].split("\x1E", maxsplit=1)
+            if len(self.current_entry) > 1 and self.current_entry[-1] == "\x1d":
+                channel_name, log_message = self.current_entry[:-1].split(
+                    "\x1e", maxsplit=1
+                )
                 self.channels[channel_name].set_log(log_message)
                 self.current_entry = ""
 
@@ -637,11 +676,10 @@ def get_log_channels(log_channel, messages):
     log_channels = dict()
     log_entry = ""
     for message in messages:
-        if (isinstance(message, OutputMessage)
-                and message.channel == log_channel):
+        if isinstance(message, OutputMessage) and message.channel == log_channel:
             log_entry += _extract_log_chars(message.data)
-            if len(log_entry) > 1 and log_entry[-1] == "\x1D":
-                channel_name, log_message = log_entry[:-1].split("\x1E", maxsplit=1)
+            if len(log_entry) > 1 and log_entry[-1] == "\x1d":
+                channel_name, log_message = log_entry[:-1].split("\x1e", maxsplit=1)
                 l = len(log_message)
                 if channel_name in log_channels:
                     if log_channels[channel_name] < l:
@@ -656,8 +694,7 @@ def get_single_device_argument(devices, module, cls, argument):
     found = None
     for desc in devices.values():
         if isinstance(desc, dict) and desc["type"] == "local":
-            if (desc["module"] == module
-                    and desc["class"] in cls):
+            if desc["module"] == module and desc["class"] in cls:
                 value = desc["arguments"][argument]
                 if found is None:
                     found = value
@@ -667,30 +704,40 @@ def get_single_device_argument(devices, module, cls, argument):
 
 
 def get_ref_period(devices):
-    return get_single_device_argument(devices, "artiq.coredevice.core",
-                                      ("Core",), "ref_period")
+    return get_single_device_argument(
+        devices, "artiq.coredevice.core", ("Core",), "ref_period"
+    )
 
 
 def get_dds_sysclk(devices):
-    return get_single_device_argument(devices, "artiq.coredevice.ad9914",
-                                      ("AD9914",), "sysclk")
+    return get_single_device_argument(
+        devices, "artiq.coredevice.ad9914", ("AD9914",), "sysclk"
+    )
 
 
-def create_channel_handlers(manager, devices, ref_period,
-                            dds_sysclk, dds_onehot_sel):
+def create_channel_handlers(manager, devices, ref_period, dds_sysclk, dds_onehot_sel):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
-            if (desc["module"] == "artiq.coredevice.ttl"
-                    and desc["class"] in {"TTLOut", "TTLInOut"}):
+            # print(desc)
+            if desc["module"] == "artiq.coredevice.ttl" and desc["class"] in {
+                "TTLOut",
+                "TTLInOut",
+            }:
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLHandler(manager, name)
-            if (desc["module"] == "artiq.coredevice.ttl"
-                    and desc["class"] == "TTLClockGen"):
+            elif (
+                desc["module"] == "artiq.coredevice.ttl"
+                and desc["class"] == "TTLClockGen"
+            ):
                 channel = desc["arguments"]["channel"]
-                channel_handlers[channel] = TTLClockGenHandler(manager, name, ref_period)
-            if (desc["module"] == "artiq.coredevice.ad9914"
-                    and desc["class"] == "AD9914"):
+                channel_handlers[channel] = TTLClockGenHandler(
+                    manager, name, ref_period
+                )
+            elif (
+                desc["module"] == "artiq.coredevice.ad9914"
+                and desc["class"] == "AD9914"
+            ):
                 dds_bus_channel = desc["arguments"]["bus_channel"]
                 dds_channel = desc["arguments"]["channel"]
                 if dds_bus_channel in channel_handlers:
@@ -699,15 +746,20 @@ def create_channel_handlers(manager, devices, ref_period,
                     dds_handler = DDSHandler(manager, dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
-            if (desc["module"] == "artiq.coredevice.spi2" and
-                    desc["class"] == "SPIMaster"):
+            elif (
+                desc["module"] == "artiq.coredevice.spi2"
+                and desc["class"] == "SPIMaster"
+            ):
                 channel = desc["arguments"]["channel"]
-                channel_handlers[channel] = SPIMaster2Handler(
-                        manager, name)
-            else:
+                channel_handlers[channel] = SPIMaster2Handler(manager, name)
+
+            elif desc["module"] == "artiq.coredevice.grabber":
+                channel_base = desc["arguments"]["channel_base"]
+                channel_handlers[channel_base] = GenericHandler(manager, name + "_offset0")
+                channel_handlers[channel_base + 1] = GenericHandler(manager, name + "_offset1")
+            elif "arguments" in desc and "channel" in desc["arguments"]:
                 channel = desc["arguments"]["channel"]
-                channel_handlers[channel] = GenericHandler(
-                        manager, name)
+                channel_handlers[channel] = GenericHandler(manager, name)
     return channel_handlers
 
 
@@ -718,7 +770,9 @@ def get_channel_list(devices):
     if ref_period is None:
         ref_period = DEFAULT_REF_PERIOD
     precision = max(0, math.ceil(math.log10(1 / ref_period) - 6))
-    manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG, precision=precision, unit="us")
+    manager.get_channel(
+        "rtio_slack", 64, ty=WaveformType.ANALOG, precision=precision, unit="us"
+    )
     return manager.channels
 
 
@@ -744,7 +798,7 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         logger.warning("unable to determine core device ref_period")
         ref_period = DEFAULT_REF_PERIOD
     if not uniform_interval:
-        manager.set_timescale_ps(ref_period*1e12)
+        manager.set_timescale_ps(ref_period * 1e12)
     dds_sysclk = get_dds_sysclk(devices)
     if dds_sysclk is None:
         logger.warning("unable to determine DDS sysclk")
@@ -761,11 +815,10 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
     messages = sorted(messages, key=get_message_time)
 
     channel_handlers = create_channel_handlers(
-        manager, devices, ref_period,
-        dds_sysclk, dump.dds_onehot_sel)
+        manager, devices, ref_period, dds_sysclk, dump.dds_onehot_sel
+    )
     log_channels = get_log_channels(dump.log_channel, messages)
-    channel_handlers[dump.log_channel] = LogHandler(
-        manager, log_channels)
+    channel_handlers[dump.log_channel] = LogHandler(manager, log_channels)
     if uniform_interval:
         # RTIO event timestamp in machine units
         timestamp = manager.get_channel("timestamp", 64, ty=WaveformType.VECTOR)
@@ -788,7 +841,7 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
             t = get_message_time(message)
             if t >= 0:
                 if uniform_interval:
-                    interval.set_value_double((t - t0)*ref_period)
+                    interval.set_value_double((t - t0) * ref_period)
                     manager.set_time(i)
                     timestamp.set_value("{:064b}".format(t))
                     t0 = t
@@ -797,4 +850,5 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
             channel_handlers[message.channel].process_message(message)
             if isinstance(message, OutputMessage):
                 slack.set_value_double(
-                    (message.timestamp - message.rtio_counter)*ref_period)
+                    (message.timestamp - message.rtio_counter) * ref_period
+                )
