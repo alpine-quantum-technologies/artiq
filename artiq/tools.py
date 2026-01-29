@@ -10,7 +10,7 @@ import sys
 import numpy as np
 
 from sipyco import pyon
-# from platformdirs import user_config_dir
+from platformdirs import user_config_dir
 
 from artiq import __version__ as artiq_version
 from artiq.language.environment import is_public_experiment
@@ -192,6 +192,6 @@ def get_windows_drives():
     return drives
 
 
-# def get_user_config_dir():
-#     major = artiq_version.split(".")[0]
-#     return user_config_dir("artiq", "m-labs", major, ensure_exists=True)
+def get_user_config_dir():
+    major = artiq_version.split(".")[0]
+    return user_config_dir("artiq", "m-labs", major, ensure_exists=True)
