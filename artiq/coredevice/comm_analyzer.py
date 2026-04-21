@@ -858,18 +858,19 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         manager.set_start_time(start_time)
     t0 = start_time
     for i, message in enumerate(messages):
-        if message.channel in channel_handlers:
-            t = get_message_time(message)
-            if t >= 0:
-                if uniform_interval:
-                    interval.set_value_double((t - t0) * ref_period)
-                    manager.set_time(i)
-                    timestamp.set_value("{:064b}".format(t))
-                    t0 = t
-                else:
-                    manager.set_time(t)
-            channel_handlers[message.channel].process_message(message)
-            if isinstance(message, OutputMessage):
-                slack.set_value_double(
-                    (message.timestamp - message.rtio_counter) * ref_period
-                )
+        if not isinstance(message, StoppedMessage):
+            if message.channel in channel_handlers:
+                t = get_message_time(message)
+                if t >= 0:
+                    if uniform_interval:
+                        interval.set_value_double((t - t0) * ref_period)
+                        manager.set_time(i)
+                        timestamp.set_value("{:064b}".format(t))
+                        t0 = t
+                    else:
+                        manager.set_time(t)
+                channel_handlers[message.channel].process_message(message)
+                if isinstance(message, OutputMessage):
+                    slack.set_value_double(
+                        (message.timestamp - message.rtio_counter) * ref_period
+                    )
