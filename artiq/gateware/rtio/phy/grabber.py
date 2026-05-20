@@ -1,5 +1,5 @@
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc import MultiReg
 from migen.genlib.fsm import FSM
 
 from artiq.gateware.rtio import rtlink
@@ -23,10 +23,10 @@ class Synchronizer(Module):
 
         self.comb += [o.eq(i) for i, o in zip(counts_in, self.counts)]
 
-        ps = PulseSynchronizer("cl", "sys")
-        self.submodules += ps
-        self.comb += ps.i.eq(roi_engines[0].out.update)
-        self.sync += self.update.eq(ps.o)
+        # ps = PulseSynchronizer("cl", "sys")
+        # self.submodules += ps
+        # self.comb += ps.i.eq(roi_engines[0].out.update)
+        self.sync += self.update.eq(roi_engines[0].out.update)
 
 
 class Serializer(Module):

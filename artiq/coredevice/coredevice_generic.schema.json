@@ -487,7 +487,7 @@
                         "roi_engine_count": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 32,
+                            "maximum": 64,
                             "default": 16,
                             "description": "Number of ROI engines."
                         }
