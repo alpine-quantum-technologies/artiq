@@ -2,7 +2,7 @@ from numpy import int32, int64
 
 from artiq.language.core import *
 from artiq.language.types import *
-from artiq.coredevice.rtio import rtio_output, rtio_input_timestamped_data
+from artiq.coredevice.rtio import rtio_output, rtio_output_wide, rtio_input_timestamped_data
 
 
 class OutOfSyncException(Exception):
@@ -76,7 +76,10 @@ class Grabber:
 
         :param mask: bitmask enabling or disabling each ROI engine.  
         """
-        rtio_output((self.channel_base + 1) << 8, mask)
+        rtio_output_wide(
+            (self.channel_base + 1) << 8,
+            [int32(mask), int32(mask >> 32)],
+        )
 
     @kernel
     def gate_roi_pulse(self, mask, dt):
