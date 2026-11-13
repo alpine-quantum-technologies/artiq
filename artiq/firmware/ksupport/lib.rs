@@ -235,7 +235,7 @@ extern "C-unwind" fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
 #[derive(Debug)]
 struct InputDataMock {
     channel: i32,
-    data: heapless::Vec<i32, heapless::consts::U128>,
+    data: heapless::Vec<i32, heapless::consts::U32767>,
     current: usize,
     consume_events: bool,
 }
@@ -255,7 +255,7 @@ static mut MOCK_INPUT_DATA: heapless::Vec<InputDataMock, heapless::consts::U16> 
 /// # Arguments
 ///
 /// * `channel` - RTIO channel to mock input data for.
-/// * `data` - mock data. The maximum data length is 128. Empty data removes the
+/// * `data` - mock data. The maximum data length is 32767. Empty data removes the
 ///   mock for the target channel.
 /// * `consume_events` - if `true`, also consume the underlying event. Block if
 ///   no such event exists.
@@ -594,10 +594,10 @@ extern "C-unwind" fn subkernel_load_run(id: u32, destination: u8, run: bool) {
     let timestamp = unsafe {
         ((csr::rtio::now_hi_read() as u64) << 32) | (csr::rtio::now_lo_read() as u64)
     };
-    send(&SubkernelLoadRunRequest { 
-        id: id, 
-        destination: destination, 
-        run: run, 
+    send(&SubkernelLoadRunRequest {
+        id: id,
+        destination: destination,
+        run: run,
         timestamp: timestamp,
     });
     recv!(&SubkernelLoadRunReply { succeeded } => {
@@ -631,14 +631,14 @@ extern "C-unwind" fn subkernel_await_finish(id: u32, timeout: i64) {
     })
 }
 
-extern fn subkernel_send_message(id: u32, is_return: bool, destination: u8, 
+extern fn subkernel_send_message(id: u32, is_return: bool, destination: u8,
     count: u8, tag: &CSlice<u8>, data: *const *const ()) {
-    send(&SubkernelMsgSend { 
+    send(&SubkernelMsgSend {
         id: id,
         destination: if is_return { None } else { Some(destination) },
         count: count,
         tag: tag.as_ref(),
-        data: data 
+        data: data
     });
 }
 
